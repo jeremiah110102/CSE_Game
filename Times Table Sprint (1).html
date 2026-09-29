@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Times Table Sprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --bg: #FBF8F1;
+    --surface: #FFFFFF;
+    --ink: #1E1A2E;
+    --ink-soft: #5B5670;
+    --line: #E3DDCF;
+    --good: #2E9E4F;
+    --good-bg: #D5F2DC;
+    --bad: #C9402F;
+    --bad-bg: #FBD9D3;
+    --focus: #1E1A2E;
+    --c1: #FFB81C; --c2: #FFE01B; --c3: #C6DB3A; --c4: #92C75A; --c5: #6CC46A;
+    --c6: #3CC2C9; --c7: #45B3E6; --c8: #5AA0E2; --c9: #7A86D3; --c10: #8A68B8;
+    --on-color: #1E1A2E;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17141F; --surface: #241F31; --ink: #F4F0FF; --ink-soft: #B3ACC8; --line: #3A3350;
+      --good: #6BDB8A; --good-bg: #21432B; --bad: #FF8B7A; --bad-bg: #4A2622; --focus: #F4F0FF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17141F; --surface: #241F31; --ink: #F4F0FF; --ink-soft: #B3ACC8; --line: #3A3350;
+    --good: #6BDB8A; --good-bg: #21432B; --bad: #FF8B7A; --bad-bg: #4A2622; --focus: #F4F0FF;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--bg); color: var(--ink);
+    font-family: "Lexend", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-weight: 500; line-height: 1.4;
+  }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; overscroll-behavior-y: none; }
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; -webkit-appearance: none; appearance: none; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+  .wrap {
+    max-width: 640px; margin: 0 auto; min-height: 100dvh;
+    padding: 24px max(16px, env(safe-area-inset-left, 0px)) 40px max(16px, env(safe-area-inset-right, 0px));
+  }
+  h1 { font-size: clamp(28px, 7vw, 40px); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .sub { margin: 0 0 22px; color: var(--ink-soft); }
+  h2 { font-size: 16px; font-weight: 700; margin: 0 0 10px; }
+
+  /* Table picker — echoes the colour columns of the chart */
+  .picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
+  .col {
+    border: 0; border-radius: 10px; padding: 14px 0 12px;
+    background: var(--tint); color: var(--on-color);
+    font-weight: 800; font-size: clamp(20px, 5.5vw, 28px);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: transform .12s, opacity .12s, filter .12s;
+    position: relative;
+  }
+  .col small { font-size: 12px; font-weight: 700; opacity: .75; }
+  .col[aria-pressed="false"] { opacity: .32; filter: grayscale(.6); }
+  .col[aria-pressed="true"]::after {
+    content: "✓"; position: absolute; top: 4px; right: 7px; font-size: 13px; font-weight: 800;
+  }
+  .col:active { transform: scale(.95); }
+
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 22px; }
+  .link {
+    background: none; border: 0; padding: 6px 2px; text-decoration: underline;
+    text-underline-offset: 3px; color: var(--ink-soft); font-weight: 700; font-size: 14px;
+  }
+  .btn {
+    border: 0; border-radius: 14px; padding: 16px 26px; font-weight: 800; font-size: 18px;
+    background: var(--ink); color: var(--bg); width: 100%;
+  }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn.alt { background: transparent; color: var(--ink); border: 2px solid var(--ink); }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .best { color: var(--ink-soft); font-size: 14px; margin: 14px 0 0; text-align: center; }
+  .hidden { display: none !important; }
+
+  /* Game */
+  .hud { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; margin-bottom: 10px; }
+  .hud .score { font-size: 22px; font-weight: 800; }
+  .hud .streak { color: var(--ink-soft); font-size: 14px; min-height: 1.4em; }
+  .progress { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin-bottom: 16px; }
+  .progress i { height: 8px; border-radius: 4px; background: var(--line); }
+  .progress i.done { background: var(--good); }
+  .progress i.miss { background: var(--bad); }
+  .progress i.now { background: var(--ink); }
+
+  .card {
+    background: var(--tint, var(--c5)); color: var(--on-color);
+    border-radius: 18px; padding: 28px 16px 30px; text-align: center; margin-bottom: 14px;
+    transition: background .2s;
+  }
+  .card .label { font-size: 14px; font-weight: 700; opacity: .75; }
+  .q { font-size: clamp(52px, 17vw, 88px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin: 6px 0 0; }
+  .q span { display: inline-block; min-width: 1.2ch; }
+
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt {
+    background: var(--surface); border: 2px solid var(--line); border-radius: 14px;
+    padding: 18px 8px; font-size: 28px; font-weight: 800; position: relative;
+    transition: transform .1s, background .15s, border-color .15s;
+  }
+  .opt:active:not(:disabled) { transform: scale(.97); }
+  .opt .k { position: absolute; top: 6px; left: 10px; font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+  .opt.right { background: var(--good-bg); border-color: var(--good); }
+  .opt.wrong { background: var(--bad-bg); border-color: var(--bad); }
+  .opt:disabled { cursor: default; }
+  .feedback { min-height: 1.6em; text-align: center; font-weight: 700; margin: 12px 0 0; }
+  .feedback.good { color: var(--good); }
+  .feedback.bad { color: var(--bad); }
+
+  /* Results */
+  .result-top { text-align: center; margin-bottom: 18px; }
+  .result-top .big { font-size: clamp(56px, 18vw, 88px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .result-top p { margin: 6px 0 0; color: var(--ink-soft); }
+  .missed { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
+  .missed li {
+    border-radius: 10px; padding: 12px; font-weight: 800; font-size: 18px;
+    background: var(--tint); color: var(--on-color);
+  }
+
+  .opt { min-height: 64px; }
+  .col { min-height: 56px; }
+
+  /* Touch screens: no keyboard hints, roomier tap targets */
+  @media (hover: none) and (pointer: coarse) {
+    .opt .k { display: none; }
+    .opt { min-height: 72px; font-size: 30px; }
+    .link { padding: 12px 6px; }
+  }
+
+  /* Narrow phones */
+  @media (max-width: 380px) {
+    .wrap { padding-top: 16px; }
+    .picker { gap: 6px; }
+    .col { padding: 12px 0; }
+    .col small { display: none; }
+    .card { padding: 20px 12px 22px; }
+    .opt { font-size: 24px; }
+    .btn { padding: 15px 18px; font-size: 17px; }
+    .missed { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Phone held sideways: question on the left, answers on the right */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .wrap { max-width: 900px; padding-top: 12px; padding-bottom: 16px; }
+    h1 { font-size: 26px; }
+    .sub { margin-bottom: 12px; }
+    .picker { grid-template-columns: repeat(10, 1fr); }
+    .col small { display: none; }
+    .col { min-height: 48px; padding: 10px 0; font-size: 20px; }
+    .row { margin-bottom: 12px; }
+    #game:not(.hidden) {
+      display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; align-items: stretch;
+    }
+    #game .hud, #game .progress, #game .feedback { grid-column: 1 / -1; }
+    #game .card { grid-column: 1; margin-bottom: 0; display: flex; flex-direction: column; justify-content: center; padding: 14px 12px; }
+    #game .q { font-size: clamp(40px, 11vw, 64px); }
+    #game .options { grid-column: 2; }
+    #game .opt { min-height: 0; padding: 10px 8px; font-size: 24px; }
+    #game .feedback { margin-top: 8px; min-height: 1.4em; }
+    .result-top .big { font-size: 48px; }
+    .result-top { margin-bottom: 10px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- Setup screen -->
+  <section id="setup">
+    <h1>Times Table Sprint</h1>
+    <p class="sub">Pick the tables to practise, then answer 10 questions as fast as you can.</p>
+
+    <h2>Tables</h2>
+    <div class="picker" id="picker"></div>
+    <div class="row">
+      <button class="link" id="selAll">Select all</button>
+      <button class="link" id="selHard">Only 6 to 9</button>
+      <button class="link" id="selNone">Clear</button>
+    </div>
+
+    <button class="btn" id="start">Start</button>
+    <p class="best" id="best"></p>
+  </section>
+
+  <!-- Game screen -->
+  <section id="game" class="hidden" aria-live="off">
+    <div class="hud">
+      <div class="score" id="score">0 pts</div>
+      <div class="streak" id="streak"></div>
+    </div>
+    <div class="progress" id="progress"></div>
+
+    <div class="card" id="card">
+      <div class="label" id="qLabel">Question 1 of 10</div>
+      <div class="q" id="q"></div>
+    </div>
+
+    <div class="options" id="options"></div>
+    <p class="feedback" id="feedback" aria-live="polite"></p>
+  </section>
+
+  <!-- Results screen -->
+  <section id="results" class="hidden">
+    <div class="result-top">
+      <div class="big" id="finalScore"></div>
+      <p id="finalLine"></p>
+    </div>
+    <div id="missedWrap">
+      <h2>Worth another look</h2>
+      <ul class="missed" id="missed"></ul>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="again">Play again</button>
+      <button class="btn alt" id="change">Change tables</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  var COLORS = ["#FFB81C","#FFE01B","#C6DB3A","#92C75A","#6CC46A","#3CC2C9","#45B3E6","#5AA0E2","#7A86D3","#8A68B8"];
+  var ROUND = 10;
+  var selected = new Set([2, 3, 4, 5]);
+  var state = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var setup = $("setup"), game = $("game"), results = $("results");
+
+  /* ---------- helpers ---------- */
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function show(el) {
+    [setup, game, results].forEach(function (s) { s.classList.add("hidden"); });
+    el.classList.remove("hidden");
+    window.scrollTo(0, 0);
+  }
+  function loadBest() {
+    try { return parseInt(localStorage.getItem("tts-best"), 10) || 0; } catch (e) { return 0; }
+  }
+  function saveBest(n) {
+    try { localStorage.setItem("tts-best", String(n)); } catch (e) {}
+  }
+  function showBest() {
+    var b = loadBest();
+    $("best").textContent = b ? "Best score: " + b + " pts" : "";
+  }
+
+  /* ---------- setup ---------- */
+  function renderPicker() {
+    var p = $("picker");
+    p.innerHTML = "";
+    for (var n = 1; n <= 10; n++) {
+      var b = document.createElement("button");
+      b.className = "col";
+      b.style.setProperty("--tint", COLORS[n - 1]);
+      b.setAttribute("aria-pressed", selected.has(n) ? "true" : "false");
+      b.setAttribute("aria-label", n + " times table");
+      b.innerHTML = "×" + n + "<small>table</small>";
+      b.dataset.n = n;
+      b.addEventListener("click", function () {
+        var v = parseInt(this.dataset.n, 10);
+        if (selected.has(v)) selected.delete(v); else selected.add(v);
+        renderPicker();
+        updateStart();
+      });
+      p.appendChild(b);
+    }
+    updateStart();
+  }
+  function updateStart() { $("start").disabled = selected.size === 0; }
+
+  $("selAll").onclick = function () { selected = new Set([1,2,3,4,5,6,7,8,9,10]); renderPicker(); };
+  $("selHard").onclick = function () { selected = new Set([6,7,8,9]); renderPicker(); };
+  $("selNone").onclick = function () { selected = new Set(); renderPicker(); };
+
+  /* ---------- game ---------- */
+  function buildQuestions() {
+    var pool = [];
+    selected.forEach(function (t) {
+      for (var m = 1; m <= 9; m++) pool.push({ t: t, m: m, a: t * m });
+    });
+    return shuffle(pool).slice(0, Math.min(ROUND, pool.length));
+  }
+
+  function makeChoices(q) {
+    var set = new Set([q.a]);
+    var tries = 0;
+    var cands = [q.a + q.t, q.a - q.t, q.a + q.m, q.a - q.m, q.a + 1, q.a - 1, q.a + 10, q.a - 10, q.a + 2, q.a - 2];
+    shuffle(cands);
+    cands.forEach(function (c) {
+      if (set.size < 4 && c > 0 && !set.has(c)) set.add(c);
+    });
+    while (set.size < 4 && tries++ < 50) {
+      var c = q.a + Math.floor(Math.random() * 15) - 7;
+      if (c > 0) set.add(c);
+    }
+    return shuffle(Array.from(set));
+  }
+
+  function startGame() {
+    var qs = buildQuestions();
+    state = { qs: qs, i: 0, score: 0, streak: 0, correct: 0, missed: [], marks: [], locked: false, t0: 0 };
+    show(game);
+    renderProgress();
+    $("score").textContent = "0 pts";
+    $("streak").textContent = "";
+    nextQuestion();
+  }
+
+  function renderProgress() {
+    var p = $("progress");
+    p.innerHTML = "";
+    state.qs.forEach(function (_, idx) {
+      var i = document.createElement("i");
+      var m = state.marks[idx];
+      if (m === 1) i.className = "done";
+      else if (m === 0) i.className = "miss";
+      else if (idx === state.i) i.className = "now";
+      p.appendChild(i);
+    });
+  }
+
+  function nextQuestion() {
+    var q = state.qs[state.i];
+    state.locked = false;
+    $("card").style.setProperty("--tint", COLORS[q.t - 1]);
+    $("qLabel").textContent = "Question " + (state.i + 1) + " of " + state.qs.length;
+    $("q").innerHTML = q.t + " × " + q.m + " = <span>?</span>";
+    $("feedback").textContent = "";
+    $("feedback").className = "feedback";
+    var box = $("options");
+    box.innerHTML = "";
+    makeChoices(q).forEach(function (val, idx) {
+      var b = document.createElement("button");
+      b.className = "opt";
+      b.dataset.v = val;
+      b.innerHTML = '<span class="k">' + (idx + 1) + "</span>" + val;
+      b.addEventListener("click", function () { answer(b); });
+      box.appendChild(b);
+    });
+    renderProgress();
+    state.t0 = Date.now();
+  }
+
+  function answer(btn) {
+    if (state.locked) return;
+    state.locked = true;
+    var q = state.qs[state.i];
+    var val = parseInt(btn.dataset.v, 10);
+    var ok = val === q.a;
+    var secs = (Date.now() - state.t0) / 1000;
+    var opts = Array.prototype.slice.call($("options").children);
+    opts.forEach(function (o) {
+      o.disabled = true;
+      if (parseInt(o.dataset.v, 10) === q.a) o.classList.add("right");
+    });
+    var fb = $("feedback");
+
+    if (ok) {
+      state.streak++;
+      state.correct++;
+      var speed = secs < 3 ? 5 : secs < 6 ? 2 : 0;
+      var streakBonus = Math.min(state.streak - 1, 5);
+      var gain = 10 + speed + streakBonus;
+      state.score += gain;
+      state.marks[state.i] = 1;
+      fb.textContent = "Correct  +" + gain;
+      fb.className = "feedback good";
+    } else {
+      btn.classList.add("wrong");
+      state.streak = 0;
+      state.marks[state.i] = 0;
+      state.missed.push(q);
+      $("q").innerHTML = q.t + " × " + q.m + " = <span>" + q.a + "</span>";
+      fb.textContent = q.t + " × " + q.m + " is " + q.a;
+      fb.className = "feedback bad";
+    }
+    try { if (navigator.vibrate) navigator.vibrate(ok ? 15 : [40, 40, 40]); } catch (e) {}
+    $("score").textContent = state.score + " pts";
+    $("streak").textContent = state.streak >= 2 ? state.streak + " in a row" : "";
+    renderProgress();
+
+    setTimeout(function () {
+      state.i++;
+      if (state.i >= state.qs.length) finish(); else nextQuestion();
+    }, ok ? 700 : 1600);
+  }
+
+  function finish() {
+    var total = state.qs.length;
+    var prev = loadBest();
+    var isBest = state.score > prev;
+    if (isBest) saveBest(state.score);
+    $("finalScore").textContent = state.score + " pts";
+    var line = state.correct + " of " + total + " correct";
+    if (isBest && state.score > 0) line += ". New best!";
+    $("finalLine").textContent = line;
+
+    var list = $("missed");
+    list.innerHTML = "";
+    var seen = {};
+    state.missed.forEach(function (q) {
+      var key = q.t + "x" + q.m;
+      if (seen[key]) return;
+      seen[key] = 1;
+      var li = document.createElement("li");
+      li.style.setProperty("--tint", COLORS[q.t - 1]);
+      li.textContent = q.t + " × " + q.m + " = " + q.a;
+      list.appendChild(li);
+    });
+    $("missedWrap").classList.toggle("hidden", state.missed.length === 0);
+    show(results);
+    $("again").focus({ preventScroll: true });
+  }
+
+  /* ---------- wiring ---------- */
+  $("start").onclick = startGame;
+  $("again").onclick = startGame;
+  $("change").onclick = function () { showBest(); show(setup); };
+
+  document.addEventListener("keydown", function (e) {
+    if (game.classList.contains("hidden") || !state || state.locked) return;
+    var n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 4) {
+      var b = $("options").children[n - 1];
+      if (b) b.click();
+    }
+  });
+
+  renderPicker();
+  showBest();
+})();
+</script>
+</body>
+</html>
