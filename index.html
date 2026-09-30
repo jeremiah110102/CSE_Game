@@ -108,8 +108,17 @@
     transition: background .2s;
   }
   .card .label { font-size: 14px; font-weight: 700; opacity: .75; }
-  .q { font-size: clamp(52px, 17vw, 88px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin: 6px 0 0; }
-  .q span { display: inline-block; min-width: 1.2ch; }
+  .q { white-space: nowrap; font-size: clamp(30px, 10vw, 76px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin: 6px 0 0; }
+  .q .ans { display: inline-block; min-width: 1.2ch; }
+  .q.fq { font-size: clamp(34px, 10.5vw, 58px); }
+
+  /* Stacked fractions */
+  .fr { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.1; font-size: .72em; margin: 0 .12em; }
+  .fr > span:first-child { padding: 0 .22em .05em; border-bottom: .09em solid currentColor; }
+  .fr > span:last-child { padding: .05em .22em 0; }
+  .q.fq .fr { font-size: .85em; }
+  .opt .fr { font-size: .8em; }
+  .missed li .fr { font-size: .9em; }
 
   .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .opt {
@@ -140,7 +149,7 @@
   .col { min-height: 56px; }
 
   /* Operation chips + number range */
-  .ops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px; }
+  .ops { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 22px; }
   .op {
     border: 0; border-radius: 12px; min-height: 76px; padding: 10px 4px;
     background: var(--tint); color: var(--on-color);
@@ -152,13 +161,19 @@
   .op[aria-pressed="false"] { opacity: .32; filter: grayscale(.6); }
   .op[aria-pressed="true"]::after { content: "✓"; position: absolute; top: 5px; right: 9px; font-size: 13px; font-weight: 800; }
   .op:active { transform: scale(.95); }
-  .ranges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px; }
+  .ranges { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  #rangeBlock { margin-bottom: 22px; }
+  .note { margin: 10px 0 0; color: var(--ink-soft); font-size: 13px; }
+  .note:empty { display: none; }
   .rng {
     border: 2px solid var(--line); background: var(--surface); border-radius: 12px;
     min-height: 52px; font-weight: 800; font-size: 20px;
   }
   .rng[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
   .rng:active { transform: scale(.97); }
+  .counts { grid-template-columns: repeat(6, 1fr); margin-bottom: 22px; }
+  .progress.dense { gap: 2px; }
+  .progress.dense i { height: 6px; border-radius: 3px; }
 
   /* Touch screens: no keyboard hints, roomier tap targets */
   @media (hover: none) and (pointer: coarse) {
@@ -175,6 +190,8 @@
     .col small { display: none; }
     .card { padding: 20px 12px 22px; }
     .opt { font-size: 24px; }
+    .op { font-size: 12px; padding: 10px 2px; }
+    .op b { font-size: 26px; }
     .btn { padding: 15px 18px; font-size: 17px; }
     .missed { grid-template-columns: 1fr 1fr; }
   }
@@ -190,14 +207,18 @@
     .row { margin-bottom: 12px; }
     .op { min-height: 52px; flex-direction: row; gap: 8px; }
     .op b { font-size: 24px; }
-    .ops, .ranges { margin-bottom: 12px; }
+    .ops { margin-bottom: 12px; }
+    .ranges { grid-template-columns: repeat(10, 1fr); }
+    .counts { grid-template-columns: repeat(6, 1fr); margin-bottom: 12px; }
+    #rangeBlock { margin-bottom: 12px; }
     .rng { min-height: 44px; }
     #game:not(.hidden) {
       display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; align-items: stretch;
     }
     #game .hud, #game .progress, #game .feedback { grid-column: 1 / -1; }
     #game .card { grid-column: 1; margin-bottom: 0; display: flex; flex-direction: column; justify-content: center; padding: 14px 12px; }
-    #game .q { font-size: clamp(40px, 11vw, 64px); }
+    #game .q { font-size: clamp(30px, 6.5vw, 56px); }
+    #game .q.fq { font-size: clamp(28px, 7vw, 44px); }
     #game .options { grid-column: 2; }
     #game .opt { min-height: 0; padding: 10px 8px; font-size: 24px; }
     #game .feedback { margin-top: 8px; min-height: 1.4em; }
@@ -216,10 +237,13 @@
   <!-- Setup screen -->
   <section id="setup">
     <h1>Math Sprint</h1>
-    <p class="sub">Choose what to practise, then answer 10 questions as fast as you can.</p>
+    <p class="sub">Choose what to practise and how many questions, then answer as fast as you can.</p>
 
-    <h2>Practise</h2>
+    <h2>Whole numbers</h2>
     <div class="ops" id="ops"></div>
+
+    <h2>Fractions</h2>
+    <div class="ops" id="fops"></div>
 
     <div id="tablesBlock">
       <h2>Times tables</h2>
@@ -232,9 +256,13 @@
     </div>
 
     <div id="rangeBlock">
-      <h2>Adding and subtracting: numbers up to</h2>
+      <h2>Numbers up to</h2>
       <div class="ranges" id="ranges"></div>
+      <p class="note" id="rangeNote"></p>
     </div>
+
+    <h2>How many questions</h2>
+    <div class="ranges counts" id="counts"></div>
 
     <button class="btn" id="start">Start</button>
     <p class="best" id="best"></p>
@@ -278,9 +306,13 @@
 <script>
 (function () {
   var COLORS = ["#FFB81C","#FFE01B","#C6DB3A","#92C75A","#6CC46A","#3CC2C9","#45B3E6","#5AA0E2","#7A86D3","#8A68B8"];
-  var ROUND = 10;
-  var OP_COLOR = { "×": "#FFB81C", "+": "#3CC2C9", "−": "#8A68B8" };
-  var OP_NAME = { "×": "Multiply", "+": "Add", "−": "Subtract" };
+  var COUNTS = [5, 10, 15, 20, 30, 50];
+  var rounds = 10;
+  var OP_COLOR = {
+    "×": "#FFB81C", "+": "#3CC2C9", "−": "#8A68B8", "÷": "#92C75A",
+    "f×": "#FFE01B", "f+": "#45B3E6", "f−": "#7A86D3", "f÷": "#C6DB3A"
+  };
+  var OP_NAME = { "×": "Multiply", "+": "Add", "−": "Subtract", "÷": "Divide" };
   var ops = new Set(["×"]);
   var range = 10;
   var selected = new Set([2, 3, 4, 5]);
@@ -302,15 +334,16 @@
     el.classList.remove("hidden");
     window.scrollTo(0, 0);
   }
-  function loadBest() {
-    try { return parseInt(localStorage.getItem("tts-best"), 10) || 0; } catch (e) { return 0; }
+  function bestKey(c) { return c === 10 ? "tts-best" : "tts-best-" + c; }
+  function loadBest(c) {
+    try { return parseInt(localStorage.getItem(bestKey(c)), 10) || 0; } catch (e) { return 0; }
   }
-  function saveBest(n) {
-    try { localStorage.setItem("tts-best", String(n)); } catch (e) {}
+  function saveBest(c, n) {
+    try { localStorage.setItem(bestKey(c), String(n)); } catch (e) {}
   }
   function showBest() {
-    var b = loadBest();
-    $("best").textContent = b ? "Best score: " + b + " pts" : "";
+    var b = loadBest(rounds);
+    $("best").textContent = b ? "Best score for " + rounds + " questions: " + b + " pts" : "";
   }
 
   /* ---------- setup ---------- */
@@ -335,44 +368,72 @@
     }
     updateStart();
   }
+  var W_OPS = ["×", "+", "−", "÷"];
+  var F_OPS = ["f×", "f+", "f−", "f÷"];
+  var RANGES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
   function activeOps() {
     var a = [];
-    if (ops.has("×") && selected.size) a.push("×");
-    if (ops.has("+")) a.push("+");
-    if (ops.has("−")) a.push("−");
+    W_OPS.concat(F_OPS).forEach(function (k) {
+      if (!ops.has(k)) return;
+      if (k === "×" && !selected.size) return;
+      a.push(k);
+    });
     return a;
   }
+  function anyFrac() { return F_OPS.some(function (k) { return ops.has(k); }); }
+  function maxDen() { return Math.min(12, 4 + range / 10); }
+
   function updateStart() {
+    var needRange = ops.has("+") || ops.has("−") || ops.has("÷") || anyFrac();
     $("tablesBlock").classList.toggle("hidden", !ops.has("×"));
-    $("rangeBlock").classList.toggle("hidden", !(ops.has("+") || ops.has("−")));
+    $("rangeBlock").classList.toggle("hidden", !needRange);
+    $("rangeNote").textContent = anyFrac() ? "Fractions: the bottom numbers go up to " + maxDen() + "." : "";
     $("start").disabled = activeOps().length === 0;
   }
-  function renderOps() {
-    var box = $("ops");
+  function renderGroup(boxId, keys) {
+    var box = $(boxId);
     box.innerHTML = "";
-    ["×", "+", "−"].forEach(function (o) {
+    keys.forEach(function (k) {
+      var sym = k.replace("f", "");
       var b = document.createElement("button");
       b.className = "op";
-      b.style.setProperty("--tint", OP_COLOR[o]);
-      b.setAttribute("aria-pressed", ops.has(o) ? "true" : "false");
-      b.innerHTML = "<b>" + o + "</b>" + OP_NAME[o];
+      b.style.setProperty("--tint", OP_COLOR[k]);
+      b.setAttribute("aria-pressed", ops.has(k) ? "true" : "false");
+      b.setAttribute("aria-label", (k.length > 1 ? "Fraction " : "") + OP_NAME[sym]);
+      b.innerHTML = "<b>" + sym + "</b>" + OP_NAME[sym];
       b.addEventListener("click", function () {
-        if (ops.has(o)) ops.delete(o); else ops.add(o);
+        if (ops.has(k)) ops.delete(k); else ops.add(k);
         renderOps();
         updateStart();
       });
       box.appendChild(b);
     });
   }
+  function renderOps() { renderGroup("ops", W_OPS); renderGroup("fops", F_OPS); }
   function renderRanges() {
     var box = $("ranges");
     box.innerHTML = "";
-    [10, 20, 100].forEach(function (r) {
+    RANGES.forEach(function (r) {
       var b = document.createElement("button");
       b.className = "rng";
       b.setAttribute("aria-pressed", range === r ? "true" : "false");
       b.textContent = r;
-      b.addEventListener("click", function () { range = r; renderRanges(); });
+      b.addEventListener("click", function () { range = r; renderRanges(); updateStart(); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderCounts() {
+    var box = $("counts");
+    box.innerHTML = "";
+    COUNTS.forEach(function (c) {
+      var b = document.createElement("button");
+      b.className = "rng";
+      b.setAttribute("aria-pressed", rounds === c ? "true" : "false");
+      b.setAttribute("aria-label", c + " questions");
+      b.textContent = c;
+      b.addEventListener("click", function () { rounds = c; renderCounts(); showBest(); });
       box.appendChild(b);
     });
   }
@@ -383,45 +444,98 @@
 
   /* ---------- game ---------- */
   function rand(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
-  function qText(q) { return q.x + " " + q.op + " " + q.y; }
+  function gcd(a, b) { while (b) { var t = a % b; a = b; b = t; } return a; }
+  function red(n, d) { var g = gcd(n, d); return { n: n / g, d: d / g }; }
+  function fkey(f) { return f.d === 1 ? String(f.n) : f.n + "/" + f.d; }
+  function fracHTML(n, d) { return '<span class="fr"><span>' + n + "</span><span>" + d + "</span></span>"; }
+  function fval(f) { return f.d === 1 ? String(f.n) : fracHTML(f.n, f.d); }
 
-  function makeQuestion(op) {
+  function qText(q) {
+    return q.kind === "f" ? fkey(q.f1) + " " + q.op + " " + fkey(q.f2) : q.x + " " + q.op + " " + q.y;
+  }
+  function qHTML(q) {
+    return q.kind === "f" ? fval(q.f1) + " " + q.op + " " + fval(q.f2) : qText(q);
+  }
+  function ansHTML(q) { return q.kind === "f" ? fval(q.a) : String(q.a); }
+
+  function wholeQuestion(op) {
     var x, y, a;
     if (op === "×") {
       var arr = Array.from(selected);
       x = arr[rand(0, arr.length - 1)];
       y = rand(1, 9);
-      return { op: op, x: x, y: y, a: x * y, color: COLORS[x - 1], fast: 3 };
+      return { kind: "w", op: op, x: x, y: y, a: x * y, key: String(x * y), color: COLORS[x - 1], fast: 3 };
     }
-    var fast = range <= 10 ? 3 : range <= 20 ? 4 : 6;
+    var fast = 3 + Math.round(range / 25);
     if (op === "+") {
       x = rand(1, range); y = rand(1, range); a = x + y;
-    } else {
+    } else if (op === "−") {
       x = rand(2, range); y = rand(1, x - 1); a = x - y;
+    } else {
+      y = rand(2, Math.min(12, Math.floor(range / 2)));
+      a = rand(2, Math.floor(range / y));
+      x = y * a;
+      fast += 1;
     }
-    return { op: op, x: x, y: y, a: a, color: OP_COLOR[op], fast: fast };
+    return { kind: "w", op: op, x: x, y: y, a: a, key: String(a), color: OP_COLOR[op], fast: fast };
+  }
+
+  function fracQuestion(op) {
+    var md = maxDen();
+    function rf() { var d = rand(2, md), n = rand(1, d - 1); return red(n, d); }
+    var f1 = rf(), f2 = rf(), a, t;
+    if (op === "−") {
+      var tries = 0;
+      while (tries++ < 50 && f1.n * f2.d === f2.n * f1.d) f2 = rf();
+      if (f1.n * f2.d === f2.n * f1.d) { f1 = { n: 1, d: 2 }; f2 = { n: 1, d: 3 }; }
+      if (f1.n * f2.d < f2.n * f1.d) { t = f1; f1 = f2; f2 = t; }
+      a = red(f1.n * f2.d - f2.n * f1.d, f1.d * f2.d);
+    } else if (op === "+") {
+      a = red(f1.n * f2.d + f2.n * f1.d, f1.d * f2.d);
+    } else if (op === "×") {
+      a = red(f1.n * f2.n, f1.d * f2.d);
+    } else {
+      a = red(f1.n * f2.d, f1.d * f2.n);
+    }
+    return {
+      kind: "f", op: op, f1: f1, f2: f2, a: a, key: fkey(a),
+      color: OP_COLOR["f" + op], fast: (op === "+" || op === "−") ? 10 : 8
+    };
+  }
+
+  function makeQuestion(k) {
+    var q = k.charAt(0) === "f" ? fracQuestion(k.slice(1)) : wholeQuestion(k);
+    q.id = k + "|" + (q.kind === "f" ? fkey(q.f1) + "," + fkey(q.f2) : q.x + "," + q.y);
+    return q;
   }
 
   function buildQuestions() {
     var list = activeOps(), out = [], seen = {}, tries = 0;
-    while (out.length < ROUND && tries++ < 300) {
+    while (out.length < rounds && tries++ < 600) {
       var q = makeQuestion(list[rand(0, list.length - 1)]);
-      var key = q.op + q.x + "," + q.y;
-      if (seen[key]) continue;
-      seen[key] = 1;
+      if (seen[q.id]) continue;
+      seen[q.id] = 1;
       out.push(q);
+    }
+    if (out.length && out.length < rounds) {
+      // Not enough different questions (e.g. one small table): repeat some.
+      var base = out.slice(), i = 0;
+      while (out.length < rounds) out.push(base[i++ % base.length]);
+      shuffle(out);
     }
     return out;
   }
 
-  function makeChoices(q) {
+  function wholeChoices(q) {
     var set = new Set([q.a]);
     var tries = 0;
     var lo = q.op === "−" ? 0 : 1;
-    var cands = [q.a + 1, q.a - 1, q.a + 2, q.a - 2, q.a + 10, q.a - 10];
+    var cands = [q.a + 1, q.a - 1, q.a + 2, q.a - 2];
+    if (q.op !== "÷") cands.push(q.a + 10, q.a - 10);
     if (q.op === "×") cands.push(q.a + q.x, q.a - q.x, q.a + q.y, q.a - q.y);
     if (q.op === "−") cands.push(q.x + q.y);
     if (q.op === "+") cands.push(Math.abs(q.x - q.y));
+    if (q.op === "÷") cands.push(q.y, q.x - q.y);
     shuffle(cands);
     cands.forEach(function (c) {
       if (set.size < 4 && c >= lo && !set.has(c)) set.add(c);
@@ -430,8 +544,33 @@
       var r = q.a + Math.floor(Math.random() * 15) - 7;
       if (r >= lo) set.add(r);
     }
-    return shuffle(Array.from(set));
+    return shuffle(Array.from(set)).map(function (v) { return { key: String(v), html: String(v) }; });
   }
+
+  function fracChoices(q) {
+    var f1 = q.f1, f2 = q.f2, a = q.a;
+    var seen = {}, out = [{ key: q.key, html: fval(a) }];
+    seen[q.key] = 1;
+    function add(n, d) {
+      if (!(n > 0 && d > 0)) return;
+      var r = red(n, d), k = fkey(r);
+      if (seen[k]) return;
+      seen[k] = 1;
+      out.push({ key: k, html: fval(r) });
+    }
+    var cands = [[a.n + 1, a.d], [a.n - 1, a.d], [a.n, a.d + 1], [a.n, a.d - 1], [a.d, a.n]];
+    if (q.op === "+") cands.push([f1.n + f2.n, f1.d + f2.d]);
+    if (q.op === "−") cands.push([f1.n - f2.n, f1.d - f2.d], [f1.n * f2.d + f2.n * f1.d, f1.d * f2.d]);
+    if (q.op === "×") cands.push([f1.n * f2.d, f1.d * f2.n], [f1.n * f2.n, f1.d + f2.d]);
+    if (q.op === "÷") cands.push([f1.n * f2.n, f1.d * f2.d], [f1.d * f2.n, f1.n * f2.d]);
+    shuffle(cands);
+    cands.forEach(function (c) { if (out.length < 4) add(c[0], c[1]); });
+    var tries = 0;
+    while (out.length < 4 && tries++ < 200) add(a.n + rand(-3, 3), a.d + rand(-3, 3));
+    return shuffle(out);
+  }
+
+  function makeChoices(q) { return q.kind === "f" ? fracChoices(q) : wholeChoices(q); }
 
   function startGame() {
     var qs = buildQuestions();
@@ -446,6 +585,7 @@
   function renderProgress() {
     var p = $("progress");
     p.innerHTML = "";
+    p.classList.toggle("dense", state.qs.length > 20);
     state.qs.forEach(function (_, idx) {
       var i = document.createElement("i");
       var m = state.marks[idx];
@@ -461,16 +601,18 @@
     state.locked = false;
     $("card").style.setProperty("--tint", q.color);
     $("qLabel").textContent = "Question " + (state.i + 1) + " of " + state.qs.length;
-    $("q").innerHTML = qText(q) + " = <span>?</span>";
+    $("q").classList.toggle("fq", q.kind === "f");
+    $("q").innerHTML = qHTML(q) + ' = <span class="ans">?</span>';
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     var box = $("options");
     box.innerHTML = "";
-    makeChoices(q).forEach(function (val, idx) {
+    makeChoices(q).forEach(function (c, idx) {
       var b = document.createElement("button");
       b.className = "opt";
-      b.dataset.v = val;
-      b.innerHTML = '<span class="k">' + (idx + 1) + "</span>" + val;
+      b.dataset.v = c.key;
+      b.setAttribute("aria-label", c.key);
+      b.innerHTML = '<span class="k">' + (idx + 1) + "</span>" + c.html;
       b.addEventListener("click", function () { answer(b); });
       box.appendChild(b);
     });
@@ -482,13 +624,12 @@
     if (state.locked) return;
     state.locked = true;
     var q = state.qs[state.i];
-    var val = parseInt(btn.dataset.v, 10);
-    var ok = val === q.a;
+    var ok = btn.dataset.v === q.key;
     var secs = (Date.now() - state.t0) / 1000;
     var opts = Array.prototype.slice.call($("options").children);
     opts.forEach(function (o) {
       o.disabled = true;
-      if (parseInt(o.dataset.v, 10) === q.a) o.classList.add("right");
+      if (o.dataset.v === q.key) o.classList.add("right");
     });
     var fb = $("feedback");
 
@@ -507,8 +648,8 @@
       state.streak = 0;
       state.marks[state.i] = 0;
       state.missed.push(q);
-      $("q").innerHTML = qText(q) + " = <span>" + q.a + "</span>";
-      fb.textContent = qText(q) + " is " + q.a;
+      $("q").innerHTML = qHTML(q) + ' = <span class="ans">' + ansHTML(q) + "</span>";
+      fb.textContent = qText(q) + " is " + q.key;
       fb.className = "feedback bad";
     }
     try { if (navigator.vibrate) navigator.vibrate(ok ? 15 : [40, 40, 40]); } catch (e) {}
@@ -524,9 +665,9 @@
 
   function finish() {
     var total = state.qs.length;
-    var prev = loadBest();
+    var prev = loadBest(total);
     var isBest = state.score > prev;
-    if (isBest) saveBest(state.score);
+    if (isBest) saveBest(total, state.score);
     $("finalScore").textContent = state.score + " pts";
     var line = state.correct + " of " + total + " correct";
     if (isBest && state.score > 0) line += ". New best!";
@@ -536,12 +677,11 @@
     list.innerHTML = "";
     var seen = {};
     state.missed.forEach(function (q) {
-      var key = q.op + q.x + "," + q.y;
-      if (seen[key]) return;
-      seen[key] = 1;
+      if (seen[q.id]) return;
+      seen[q.id] = 1;
       var li = document.createElement("li");
       li.style.setProperty("--tint", q.color);
-      li.textContent = qText(q) + " = " + q.a;
+      li.innerHTML = qHTML(q) + " = " + ansHTML(q);
       list.appendChild(li);
     });
     $("missedWrap").classList.toggle("hidden", state.missed.length === 0);
@@ -565,6 +705,7 @@
 
   renderOps();
   renderRanges();
+  renderCounts();
   renderPicker();
   showBest();
 })();
