@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Times Table Sprint</title>
+<title>Math Sprint</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;700;800&display=swap" rel="stylesheet">
@@ -139,6 +139,27 @@
   .opt { min-height: 64px; }
   .col { min-height: 56px; }
 
+  /* Operation chips + number range */
+  .ops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px; }
+  .op {
+    border: 0; border-radius: 12px; min-height: 76px; padding: 10px 4px;
+    background: var(--tint); color: var(--on-color);
+    font-weight: 800; font-size: 15px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    position: relative; transition: transform .12s, opacity .12s, filter .12s;
+  }
+  .op b { font-size: 32px; line-height: 1; }
+  .op[aria-pressed="false"] { opacity: .32; filter: grayscale(.6); }
+  .op[aria-pressed="true"]::after { content: "✓"; position: absolute; top: 5px; right: 9px; font-size: 13px; font-weight: 800; }
+  .op:active { transform: scale(.95); }
+  .ranges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px; }
+  .rng {
+    border: 2px solid var(--line); background: var(--surface); border-radius: 12px;
+    min-height: 52px; font-weight: 800; font-size: 20px;
+  }
+  .rng[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+  .rng:active { transform: scale(.97); }
+
   /* Touch screens: no keyboard hints, roomier tap targets */
   @media (hover: none) and (pointer: coarse) {
     .opt .k { display: none; }
@@ -167,6 +188,10 @@
     .col small { display: none; }
     .col { min-height: 48px; padding: 10px 0; font-size: 20px; }
     .row { margin-bottom: 12px; }
+    .op { min-height: 52px; flex-direction: row; gap: 8px; }
+    .op b { font-size: 24px; }
+    .ops, .ranges { margin-bottom: 12px; }
+    .rng { min-height: 44px; }
     #game:not(.hidden) {
       display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; align-items: stretch;
     }
@@ -190,15 +215,25 @@
 
   <!-- Setup screen -->
   <section id="setup">
-    <h1>Times Table Sprint</h1>
-    <p class="sub">Pick the tables to practise, then answer 10 questions as fast as you can.</p>
+    <h1>Math Sprint</h1>
+    <p class="sub">Choose what to practise, then answer 10 questions as fast as you can.</p>
 
-    <h2>Tables</h2>
-    <div class="picker" id="picker"></div>
-    <div class="row">
-      <button class="link" id="selAll">Select all</button>
-      <button class="link" id="selHard">Only 6 to 9</button>
-      <button class="link" id="selNone">Clear</button>
+    <h2>Practise</h2>
+    <div class="ops" id="ops"></div>
+
+    <div id="tablesBlock">
+      <h2>Times tables</h2>
+      <div class="picker" id="picker"></div>
+      <div class="row">
+        <button class="link" id="selAll">Select all</button>
+        <button class="link" id="selHard">Only 6 to 9</button>
+        <button class="link" id="selNone">Clear</button>
+      </div>
+    </div>
+
+    <div id="rangeBlock">
+      <h2>Adding and subtracting: numbers up to</h2>
+      <div class="ranges" id="ranges"></div>
     </div>
 
     <button class="btn" id="start">Start</button>
@@ -244,6 +279,10 @@
 (function () {
   var COLORS = ["#FFB81C","#FFE01B","#C6DB3A","#92C75A","#6CC46A","#3CC2C9","#45B3E6","#5AA0E2","#7A86D3","#8A68B8"];
   var ROUND = 10;
+  var OP_COLOR = { "×": "#FFB81C", "+": "#3CC2C9", "−": "#8A68B8" };
+  var OP_NAME = { "×": "Multiply", "+": "Add", "−": "Subtract" };
+  var ops = new Set(["×"]);
+  var range = 10;
   var selected = new Set([2, 3, 4, 5]);
   var state = null;
 
@@ -296,32 +335,100 @@
     }
     updateStart();
   }
-  function updateStart() { $("start").disabled = selected.size === 0; }
+  function activeOps() {
+    var a = [];
+    if (ops.has("×") && selected.size) a.push("×");
+    if (ops.has("+")) a.push("+");
+    if (ops.has("−")) a.push("−");
+    return a;
+  }
+  function updateStart() {
+    $("tablesBlock").classList.toggle("hidden", !ops.has("×"));
+    $("rangeBlock").classList.toggle("hidden", !(ops.has("+") || ops.has("−")));
+    $("start").disabled = activeOps().length === 0;
+  }
+  function renderOps() {
+    var box = $("ops");
+    box.innerHTML = "";
+    ["×", "+", "−"].forEach(function (o) {
+      var b = document.createElement("button");
+      b.className = "op";
+      b.style.setProperty("--tint", OP_COLOR[o]);
+      b.setAttribute("aria-pressed", ops.has(o) ? "true" : "false");
+      b.innerHTML = "<b>" + o + "</b>" + OP_NAME[o];
+      b.addEventListener("click", function () {
+        if (ops.has(o)) ops.delete(o); else ops.add(o);
+        renderOps();
+        updateStart();
+      });
+      box.appendChild(b);
+    });
+  }
+  function renderRanges() {
+    var box = $("ranges");
+    box.innerHTML = "";
+    [10, 20, 100].forEach(function (r) {
+      var b = document.createElement("button");
+      b.className = "rng";
+      b.setAttribute("aria-pressed", range === r ? "true" : "false");
+      b.textContent = r;
+      b.addEventListener("click", function () { range = r; renderRanges(); });
+      box.appendChild(b);
+    });
+  }
 
   $("selAll").onclick = function () { selected = new Set([1,2,3,4,5,6,7,8,9,10]); renderPicker(); };
   $("selHard").onclick = function () { selected = new Set([6,7,8,9]); renderPicker(); };
   $("selNone").onclick = function () { selected = new Set(); renderPicker(); };
 
   /* ---------- game ---------- */
+  function rand(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+  function qText(q) { return q.x + " " + q.op + " " + q.y; }
+
+  function makeQuestion(op) {
+    var x, y, a;
+    if (op === "×") {
+      var arr = Array.from(selected);
+      x = arr[rand(0, arr.length - 1)];
+      y = rand(1, 9);
+      return { op: op, x: x, y: y, a: x * y, color: COLORS[x - 1], fast: 3 };
+    }
+    var fast = range <= 10 ? 3 : range <= 20 ? 4 : 6;
+    if (op === "+") {
+      x = rand(1, range); y = rand(1, range); a = x + y;
+    } else {
+      x = rand(2, range); y = rand(1, x - 1); a = x - y;
+    }
+    return { op: op, x: x, y: y, a: a, color: OP_COLOR[op], fast: fast };
+  }
+
   function buildQuestions() {
-    var pool = [];
-    selected.forEach(function (t) {
-      for (var m = 1; m <= 9; m++) pool.push({ t: t, m: m, a: t * m });
-    });
-    return shuffle(pool).slice(0, Math.min(ROUND, pool.length));
+    var list = activeOps(), out = [], seen = {}, tries = 0;
+    while (out.length < ROUND && tries++ < 300) {
+      var q = makeQuestion(list[rand(0, list.length - 1)]);
+      var key = q.op + q.x + "," + q.y;
+      if (seen[key]) continue;
+      seen[key] = 1;
+      out.push(q);
+    }
+    return out;
   }
 
   function makeChoices(q) {
     var set = new Set([q.a]);
     var tries = 0;
-    var cands = [q.a + q.t, q.a - q.t, q.a + q.m, q.a - q.m, q.a + 1, q.a - 1, q.a + 10, q.a - 10, q.a + 2, q.a - 2];
+    var lo = q.op === "−" ? 0 : 1;
+    var cands = [q.a + 1, q.a - 1, q.a + 2, q.a - 2, q.a + 10, q.a - 10];
+    if (q.op === "×") cands.push(q.a + q.x, q.a - q.x, q.a + q.y, q.a - q.y);
+    if (q.op === "−") cands.push(q.x + q.y);
+    if (q.op === "+") cands.push(Math.abs(q.x - q.y));
     shuffle(cands);
     cands.forEach(function (c) {
-      if (set.size < 4 && c > 0 && !set.has(c)) set.add(c);
+      if (set.size < 4 && c >= lo && !set.has(c)) set.add(c);
     });
-    while (set.size < 4 && tries++ < 50) {
-      var c = q.a + Math.floor(Math.random() * 15) - 7;
-      if (c > 0) set.add(c);
+    while (set.size < 4 && tries++ < 80) {
+      var r = q.a + Math.floor(Math.random() * 15) - 7;
+      if (r >= lo) set.add(r);
     }
     return shuffle(Array.from(set));
   }
@@ -352,9 +459,9 @@
   function nextQuestion() {
     var q = state.qs[state.i];
     state.locked = false;
-    $("card").style.setProperty("--tint", COLORS[q.t - 1]);
+    $("card").style.setProperty("--tint", q.color);
     $("qLabel").textContent = "Question " + (state.i + 1) + " of " + state.qs.length;
-    $("q").innerHTML = q.t + " × " + q.m + " = <span>?</span>";
+    $("q").innerHTML = qText(q) + " = <span>?</span>";
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     var box = $("options");
@@ -388,7 +495,7 @@
     if (ok) {
       state.streak++;
       state.correct++;
-      var speed = secs < 3 ? 5 : secs < 6 ? 2 : 0;
+      var speed = secs < q.fast ? 5 : secs < q.fast * 2 ? 2 : 0;
       var streakBonus = Math.min(state.streak - 1, 5);
       var gain = 10 + speed + streakBonus;
       state.score += gain;
@@ -400,8 +507,8 @@
       state.streak = 0;
       state.marks[state.i] = 0;
       state.missed.push(q);
-      $("q").innerHTML = q.t + " × " + q.m + " = <span>" + q.a + "</span>";
-      fb.textContent = q.t + " × " + q.m + " is " + q.a;
+      $("q").innerHTML = qText(q) + " = <span>" + q.a + "</span>";
+      fb.textContent = qText(q) + " is " + q.a;
       fb.className = "feedback bad";
     }
     try { if (navigator.vibrate) navigator.vibrate(ok ? 15 : [40, 40, 40]); } catch (e) {}
@@ -429,12 +536,12 @@
     list.innerHTML = "";
     var seen = {};
     state.missed.forEach(function (q) {
-      var key = q.t + "x" + q.m;
+      var key = q.op + q.x + "," + q.y;
       if (seen[key]) return;
       seen[key] = 1;
       var li = document.createElement("li");
-      li.style.setProperty("--tint", COLORS[q.t - 1]);
-      li.textContent = q.t + " × " + q.m + " = " + q.a;
+      li.style.setProperty("--tint", q.color);
+      li.textContent = qText(q) + " = " + q.a;
       list.appendChild(li);
     });
     $("missedWrap").classList.toggle("hidden", state.missed.length === 0);
@@ -456,6 +563,8 @@
     }
   });
 
+  renderOps();
+  renderRanges();
   renderPicker();
   showBest();
 })();
