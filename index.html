@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Math Sprint</title>
+<title>Numerical Ability Sprint</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;700;800&display=swap" rel="stylesheet">
@@ -175,6 +175,42 @@
   .progress.dense { gap: 2px; }
   .progress.dense i { height: 6px; border-radius: 3px; }
 
+  /* Topic list + settings panels */
+  .topics { display: grid; gap: 8px; margin-bottom: 22px; }
+  .trow {
+    border: 0; border-radius: 12px; background: var(--tint); color: var(--on-color);
+    padding: 12px 52px 12px 14px; text-align: left; position: relative; min-height: 58px;
+    transition: opacity .12s, filter .12s, transform .12s;
+  }
+  .trow b { display: block; font-size: 16px; font-weight: 800; }
+  .trow small { display: block; font-size: 12.5px; font-weight: 600; opacity: .8; margin-top: 1px; }
+  .trow[aria-pressed="false"] { opacity: .36; filter: grayscale(.55); }
+  .trow::after {
+    content: ""; position: absolute; right: 14px; top: 50%; width: 24px; height: 24px; margin-top: -12px;
+    border-radius: 50%; border: 2px solid currentColor; text-align: center; line-height: 20px; font-weight: 800; font-size: 14px;
+  }
+  .trow[aria-pressed="true"]::after { content: "✓"; }
+  .trow:active { transform: scale(.98); }
+  .detail { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 22px; }
+  .detail h3 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+  .detail #tablesBlock h3 { margin-top: 4px; }
+  .detail .ops { margin-bottom: 14px; }
+  .detail .row { margin-bottom: 0; }
+  .detail .picker { margin-bottom: 8px; }
+  .detail > .ops:last-child { margin-bottom: 0; }
+  .ops.three { grid-template-columns: repeat(3, 1fr); }
+  .best:empty { display: none; }
+
+  /* Text questions (sequences, word problems, ratio) */
+  .card.txt { text-align: left; padding: 20px 16px 22px; }
+  .q.tq { white-space: normal; font-size: clamp(17px, 4.8vw, 21px); font-weight: 700; letter-spacing: 0; line-height: 1.45; }
+  .q.tq .seq { font-size: 1.5em; font-weight: 800; letter-spacing: .03em; margin-top: 10px; line-height: 1.3; overflow-wrap: anywhere; }
+  .options.txt .opt { font-size: 22px; }
+  .explain { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; line-height: 1.5; user-select: text; -webkit-user-select: text; }
+  #nextBtn { margin-top: 12px; }
+  .missed li.wide { grid-column: 1 / -1; font-size: 15px; }
+  .missed li.wide small { display: block; font-weight: 600; opacity: .85; margin-top: 4px; font-size: 13px; }
+
   /* Touch screens: no keyboard hints, roomier tap targets */
   @media (hover: none) and (pointer: coarse) {
     .opt .k { display: none; }
@@ -219,6 +255,8 @@
     #game .card { grid-column: 1; margin-bottom: 0; display: flex; flex-direction: column; justify-content: center; padding: 14px 12px; }
     #game .q { font-size: clamp(30px, 6.5vw, 56px); }
     #game .q.fq { font-size: clamp(28px, 7vw, 44px); }
+    #game .q.tq { font-size: clamp(15px, 2.4vw, 19px); }
+    #game .explain, #game #nextBtn { grid-column: 1 / -1; }
     #game .options { grid-column: 2; }
     #game .opt { min-height: 0; padding: 10px 8px; font-size: 24px; }
     #game .feedback { margin-top: 8px; min-height: 1.4em; }
@@ -236,23 +274,29 @@
 
   <!-- Setup screen -->
   <section id="setup">
-    <h1>Math Sprint</h1>
-    <p class="sub">Choose what to practise and how many questions, then answer as fast as you can.</p>
+    <h1>Numerical Ability</h1>
+    <p class="sub">Civil Service Exam practice. Pick your topics, then answer as fast as you can.</p>
 
-    <h2>Whole numbers</h2>
-    <div class="ops" id="ops"></div>
+    <h2>Topics</h2>
+    <div class="topics" id="topicList"></div>
 
-    <h2>Fractions</h2>
-    <div class="ops" id="fops"></div>
-
-    <div id="tablesBlock">
-      <h2>Times tables</h2>
-      <div class="picker" id="picker"></div>
-      <div class="row">
-        <button class="link" id="selAll">Select all</button>
-        <button class="link" id="selHard">Only 6 to 9</button>
-        <button class="link" id="selNone">Clear</button>
+    <div class="detail" id="basicBlock">
+      <h3>Basic operations</h3>
+      <div class="ops" id="ops"></div>
+      <div id="tablesBlock">
+        <h3>Times tables</h3>
+        <div class="picker" id="picker"></div>
+        <div class="row">
+          <button class="link" id="selAll">Select all</button>
+          <button class="link" id="selHard">Only 6 to 9</button>
+          <button class="link" id="selNone">Clear</button>
+        </div>
       </div>
+    </div>
+
+    <div class="detail" id="fdpBlock">
+      <h3>Fractions, decimals, percentages</h3>
+      <div class="ops three" id="fops"></div>
     </div>
 
     <div id="rangeBlock">
@@ -265,6 +309,7 @@
     <div class="ranges counts" id="counts"></div>
 
     <button class="btn" id="start">Start</button>
+    <p class="best" id="hint"></p>
     <p class="best" id="best"></p>
   </section>
 
@@ -283,6 +328,8 @@
 
     <div class="options" id="options"></div>
     <p class="feedback" id="feedback" aria-live="polite"></p>
+    <p class="explain hidden" id="explain"></p>
+    <button class="btn hidden" id="nextBtn">Next</button>
   </section>
 
   <!-- Results screen -->
@@ -297,7 +344,7 @@
     </div>
     <div class="btn-row">
       <button class="btn" id="again">Play again</button>
-      <button class="btn alt" id="change">Change tables</button>
+      <button class="btn alt" id="change">Change topics</button>
     </div>
   </section>
 
@@ -310,12 +357,14 @@
   var rounds = 10;
   var OP_COLOR = {
     "×": "#FFB81C", "+": "#3CC2C9", "−": "#8A68B8", "÷": "#92C75A",
-    "f×": "#FFE01B", "f+": "#45B3E6", "f−": "#7A86D3", "f÷": "#C6DB3A"
+    "f×": "#FFE01B", "f+": "#45B3E6", "f−": "#7A86D3", "f÷": "#C6DB3A",
+    "dec": "#5AA0E2", "pct": "#6CC46A"
   };
+  var C_SEQ = "#7A86D3", C_WORD = "#3CC2C9", C_RATIO = "#8A68B8", C_PCT = "#6CC46A";
   var OP_NAME = { "×": "Multiply", "+": "Add", "−": "Subtract", "÷": "Divide" };
-  var ops = new Set(["×"]);
-  var range = 10;
-  var selected = new Set([2, 3, 4, 5]);
+  var ops = new Set(["×", "+", "−", "÷", "f×", "f+", "f−", "f÷", "dec", "pct"]);
+  var range = 20;
+  var selected = new Set([2, 3, 4, 5, 6, 7, 8, 9]);
   var state = null;
 
   var $ = function (id) { return document.getElementById(id); };
@@ -369,39 +418,80 @@
     updateStart();
   }
   var W_OPS = ["×", "+", "−", "÷"];
-  var F_OPS = ["f×", "f+", "f−", "f÷"];
+  var FR_OPS = ["f×", "f+", "f−", "f÷"];
+  var F_OPS = FR_OPS.concat(["dec", "pct"]);
   var RANGES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  var LABEL = {
+    "×": ["×", "Multiply"], "+": ["+", "Add"], "−": ["−", "Subtract"], "÷": ["÷", "Divide"],
+    "f×": ["×", "Multiply"], "f+": ["+", "Add"], "f−": ["−", "Subtract"], "f÷": ["÷", "Divide"],
+    "dec": ["0.5", "Decimals"], "pct": ["%", "Percent"]
+  };
+  var TOPICS = [
+    { id: "basic", name: "Basic operations", desc: "Add, subtract, multiply and divide", color: "#FFB81C" },
+    { id: "seq", name: "Number sequences", desc: "Find the next or missing number", color: "#7A86D3" },
+    { id: "word", name: "Word problems", desc: "Money, time, speed, age and more", color: "#3CC2C9" },
+    { id: "fdp", name: "Fractions, decimals, percentages", desc: "Work with parts of a whole", color: "#6CC46A" },
+    { id: "ratio", name: "Ratio and proportion", desc: "Sharing, scaling and comparing", color: "#8A68B8" }
+  ];
+  var topics = new Set(TOPICS.map(function (t) { return t.id; }));
 
-  function activeOps() {
-    var a = [];
-    W_OPS.concat(F_OPS).forEach(function (k) {
-      if (!ops.has(k)) return;
-      if (k === "×" && !selected.size) return;
-      a.push(k);
-    });
-    return a;
+  function wholeOps() {
+    return W_OPS.filter(function (k) { return ops.has(k) && !(k === "×" && !selected.size); });
   }
-  function anyFrac() { return F_OPS.some(function (k) { return ops.has(k); }); }
+  function fdpOps() { return F_OPS.filter(function (k) { return ops.has(k); }); }
+  function anyFrac() { return FR_OPS.some(function (k) { return ops.has(k); }); }
   function maxDen() { return Math.min(12, 4 + range / 10); }
+  function validTopics() {
+    return TOPICS.filter(function (t) {
+      if (!topics.has(t.id)) return false;
+      if (t.id === "basic") return wholeOps().length > 0;
+      if (t.id === "fdp") return fdpOps().length > 0;
+      return true;
+    }).map(function (t) { return t.id; });
+  }
 
   function updateStart() {
-    var needRange = ops.has("+") || ops.has("−") || ops.has("÷") || anyFrac();
+    var has = function (id) { return topics.has(id); };
+    var needRange = has("seq") || has("word") || has("ratio") ||
+      (has("fdp") && fdpOps().length > 0) ||
+      (has("basic") && wholeOps().some(function (k) { return k !== "×"; }));
+    $("basicBlock").classList.toggle("hidden", !has("basic"));
     $("tablesBlock").classList.toggle("hidden", !ops.has("×"));
+    $("fdpBlock").classList.toggle("hidden", !has("fdp"));
     $("rangeBlock").classList.toggle("hidden", !needRange);
-    $("rangeNote").textContent = anyFrac() ? "Fractions: the bottom numbers go up to " + maxDen() + "." : "";
-    $("start").disabled = activeOps().length === 0;
+    $("rangeNote").textContent = (has("fdp") && anyFrac()) ? "Fractions: the bottom numbers go up to " + maxDen() + "." : "";
+    var ok = validTopics().length > 0;
+    $("start").disabled = !ok;
+    $("hint").textContent = ok ? "" : "Pick a topic and turn on at least one option.";
+  }
+  function renderTopics() {
+    var box = $("topicList");
+    box.innerHTML = "";
+    TOPICS.forEach(function (t) {
+      var b = document.createElement("button");
+      b.className = "trow";
+      b.style.setProperty("--tint", t.color);
+      b.setAttribute("aria-pressed", topics.has(t.id) ? "true" : "false");
+      b.innerHTML = "<b>" + t.name + "</b><small>" + t.desc + "</small>";
+      b.addEventListener("click", function () {
+        if (topics.has(t.id)) topics.delete(t.id); else topics.add(t.id);
+        renderTopics();
+        updateStart();
+      });
+      box.appendChild(b);
+    });
   }
   function renderGroup(boxId, keys) {
     var box = $(boxId);
     box.innerHTML = "";
     keys.forEach(function (k) {
-      var sym = k.replace("f", "");
+      var lb = LABEL[k];
       var b = document.createElement("button");
       b.className = "op";
       b.style.setProperty("--tint", OP_COLOR[k]);
       b.setAttribute("aria-pressed", ops.has(k) ? "true" : "false");
-      b.setAttribute("aria-label", (k.length > 1 ? "Fraction " : "") + OP_NAME[sym]);
-      b.innerHTML = "<b>" + sym + "</b>" + OP_NAME[sym];
+      b.setAttribute("aria-label", (k.charAt(0) === "f" ? "Fraction " : "") + lb[1]);
+      b.innerHTML = "<b>" + lb[0] + "</b>" + lb[1];
       b.addEventListener("click", function () {
         if (ops.has(k)) ops.delete(k); else ops.add(k);
         renderOps();
@@ -451,12 +541,16 @@
   function fval(f) { return f.d === 1 ? String(f.n) : fracHTML(f.n, f.d); }
 
   function qText(q) {
+    if (q.kind === "n") return q.disp;
     return q.kind === "f" ? fkey(q.f1) + " " + q.op + " " + fkey(q.f2) : q.x + " " + q.op + " " + q.y;
   }
   function qHTML(q) {
     return q.kind === "f" ? fval(q.f1) + " " + q.op + " " + fval(q.f2) : qText(q);
   }
-  function ansHTML(q) { return q.kind === "f" ? fval(q.a) : String(q.a); }
+  function ansHTML(q) {
+    if (q.kind === "n") return q.ansHTML;
+    return q.kind === "f" ? fval(q.a) : String(q.a);
+  }
 
   function wholeQuestion(op) {
     var x, y, a;
@@ -506,13 +600,429 @@
   function makeQuestion(k) {
     var q = k.charAt(0) === "f" ? fracQuestion(k.slice(1)) : wholeQuestion(k);
     q.id = k + "|" + (q.kind === "f" ? fkey(q.f1) + "," + fkey(q.f2) : q.x + "," + q.y);
+    q.topic = q.kind === "f" ? "Fractions, decimals, percentages" : "Basic operations";
     return q;
   }
 
+  /* ---------- helpers for the other numerical topics ---------- */
+  function pick(a) { return a[rand(0, a.length - 1)]; }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function commas(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function peso(n) { return "₱" + commas(n); }
+  function decStr(n, p) { return (n / Math.pow(10, p)).toFixed(p); }
+
+  function numChoices(ans, extras, lo, fmt) {
+    fmt = fmt || String;
+    if (lo === undefined) lo = 0;
+    var seen = {}, out = [];
+    function add(v) {
+      if (!Number.isInteger(v) || v < lo) return;
+      var k = fmt(v);
+      if (seen[k]) return;
+      seen[k] = 1;
+      out.push({ key: k, html: k });
+    }
+    add(ans);
+    var c = [ans + 1, ans - 1, ans + 2, ans - 2, ans + 10, ans - 10].concat(extras || []);
+    shuffle(c);
+    c.forEach(function (v) { if (out.length < 4) add(v); });
+    var spread = Math.max(6, Math.round(Math.abs(ans) * 0.2)), tries = 0;
+    while (out.length < 4 && tries++ < 300) add(ans + rand(-spread, spread));
+    return shuffle(out);
+  }
+
+  function decChoices(ans, p) {
+    var seen = {}, out = [];
+    function add(v) {
+      if (!(v > 0) || !Number.isInteger(v)) return;
+      var k = decStr(v, p);
+      if (seen[k]) return;
+      seen[k] = 1;
+      out.push({ key: k, html: k });
+    }
+    add(ans);
+    var c = [ans + 1, ans - 1, ans + 2, ans - 2, ans + 10, ans - 10, ans * 10, Math.round(ans / 10), ans + 100, ans - 100];
+    shuffle(c);
+    c.forEach(function (v) { if (out.length < 4) add(v); });
+    var tries = 0;
+    while (out.length < 4 && tries++ < 200) add(ans + rand(-15, 15));
+    return shuffle(out);
+  }
+
+  // Text question: a sentence or two, four answers, and an explanation shown after a wrong answer.
+  function mkT(id, topic, color, fast, plain, html, choices, key, explain) {
+    return {
+      kind: "t", id: id, topic: topic, color: color, fast: fast,
+      html: html || esc(plain),
+      short: plain.length > 80 ? plain.slice(0, 77) + "..." : plain,
+      choices: choices, key: key, ansText: key, explain: explain || ""
+    };
+  }
+  // Big "expression = ?" question with ready-made choices (used for decimals and percent-of).
+  function mkN(id, disp, ansKey, choices, color, fast) {
+    return {
+      kind: "n", id: id, disp: disp, ansHTML: ansKey, key: ansKey, choices: choices,
+      color: color, fast: fast, topic: "Fractions, decimals, percentages"
+    };
+  }
+
+  /* ---------- number sequences ---------- */
+  function seqQuestion() {
+    var t = rand(0, 9), full = [], a, b, c, d, r, x, y, k, i, rule;
+    var hi = Math.max(10, range), step = 3 + Math.round(range / 10);
+    if (t === 0) {
+      a = rand(1, hi); d = rand(2, step);
+      for (i = 0; i < 6; i++) full.push(a + i * d);
+      rule = "Add " + d + " each time.";
+    } else if (t === 1) {
+      d = rand(2, step); a = d * 6 + rand(1, hi);
+      for (i = 0; i < 6; i++) full.push(a - i * d);
+      rule = "Subtract " + d + " each time.";
+    } else if (t === 2) {
+      r = rand(2, 3); a = rand(1, 4);
+      for (i = 0; i < 5; i++) full.push(a * Math.pow(r, i));
+      rule = "Multiply by " + r + " each time.";
+    } else if (t === 3) {
+      a = rand(1, Math.max(5, Math.floor(range / 2))); d = rand(1, 4);
+      full.push(a);
+      for (i = 0; i < 5; i++) full.push(full[i] + d + i);
+      rule = "The gaps grow by 1 each time: +" + d + ", +" + (d + 1) + ", +" + (d + 2) + ", and so on.";
+    } else if (t === 4) {
+      a = rand(1, Math.max(5, Math.floor(range / 2))); x = rand(2, 6);
+      do { y = rand(2, 6); } while (y === x);
+      full.push(a);
+      for (i = 0; i < 6; i++) full.push(full[i] + (i % 2 === 0 ? x : y));
+      rule = "Add " + x + ", then add " + y + ", and repeat.";
+    } else if (t === 5) {
+      k = rand(1, 6);
+      for (i = 0; i < 6; i++) full.push((k + i) * (k + i));
+      rule = "These are perfect squares: " + k + "², " + (k + 1) + "², " + (k + 2) + "², and so on.";
+    } else if (t === 6) {
+      a = rand(1, 5); b = rand(1, 5);
+      full = [a, b];
+      for (i = 2; i < 6; i++) full.push(full[i - 1] + full[i - 2]);
+      rule = "Each number is the sum of the two numbers before it.";
+    } else if (t === 7) {
+      a = rand(1, 10); c = rand(1, 10); x = rand(2, 5);
+      do { y = rand(2, 5); } while (y === x);
+      full = [a, c, a + x, c + y, a + 2 * x, c + 2 * y, a + 3 * x];
+      rule = "Two patterns alternate: the 1st, 3rd, 5th... numbers go up by " + x + ", and the 2nd, 4th, 6th... numbers go up by " + y + ".";
+    } else if (t === 8) {
+      c = pick([1, 2, -1]); a = rand(c === -1 ? 2 : 1, 4);
+      full = [a];
+      for (i = 0; i < 5; i++) full.push(full[i] * 2 + c);
+      rule = "Multiply by 2, then " + (c > 0 ? "add " + c : "subtract " + (-c)) + ".";
+    } else {
+      a = rand(1, hi); d = rand(2, step);
+      for (i = 0; i < 5; i++) full.push(a + i * d);
+      rule = "Add " + d + " each time.";
+    }
+
+    var shown, ansV, mid = false;
+    if (t === 9) {
+      k = rand(1, 3); ansV = full[k]; mid = true;
+      shown = full.map(function (v, j) { return j === k ? "?" : v; });
+    } else {
+      ansV = full[full.length - 1];
+      shown = full.slice(0, -1);
+      shown.push("?");
+    }
+    var stepV = mid ? d : Math.abs(ansV - full[full.length - 2]);
+    var lead = mid ? "What number replaces the ? in the series?" : "What number comes next in the series?";
+    var html = esc(lead) + '<div class="seq">' + shown.join(", ") + "</div>";
+    return mkT("seq|" + shown.join(","), "Number sequences", C_SEQ, 12,
+      lead + " " + shown.join(", "), html,
+      numChoices(ansV, [ansV + stepV, ansV - stepV], 1), String(ansV),
+      rule + " So the answer is " + ansV + ".");
+  }
+
+  /* ---------- word problems ---------- */
+  var NAMES = ["Ana", "Ben", "Carlo", "Dina", "Elena", "Felix", "Gina", "Hugo", "Ines", "Jun", "Karla", "Luis", "Mara", "Nico", "Rosa", "Tomas"];
+  function fmtTime(m) {
+    m = ((m % 1440) + 1440) % 1440;
+    var h = Math.floor(m / 60), mm = m % 60, h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    return h12 + ":" + (mm < 10 ? "0" : "") + mm + " " + (h >= 12 ? "PM" : "AM");
+  }
+  function wordQuestion() {
+    var m = Math.max(1, Math.round(range / 10));
+    var n1 = pick(NAMES), T = rand(0, 15);
+    var p, ans, ex, fmt = String, extras = [];
+    var q, pr, a, b, c, v, t, l, w, d, nn, tot, n, S, r, h, P, rt, yrs, cost, pay, k, each, mean, d1, d2, s1, s2, s3;
+
+    if (T === 0) {
+      q = rand(3, 4 + m * 2); pr = rand(5, 10 + m * 8); ans = q * pr;
+      p = n1 + " bought " + q + " notebooks at " + peso(pr) + " each. How much did " + n1 + " pay in all?";
+      ex = q + " × " + peso(pr) + " = " + peso(ans) + ".";
+      fmt = peso; extras = [q + pr, ans + pr, ans - pr];
+    } else if (T === 1) {
+      q = rand(2, 3 + m); pr = rand(12, 20 + m * 10); cost = q * pr;
+      pay = Math.ceil(cost / 100) * 100; if (pay === cost) pay += 100;
+      ans = pay - cost;
+      p = n1 + " paid " + peso(pay) + " for " + q + " folders that cost " + peso(pr) + " each. How much change should " + n1 + " receive?";
+      ex = q + " × " + peso(pr) + " = " + peso(cost) + ". " + peso(pay) + " − " + peso(cost) + " = " + peso(ans) + ".";
+      fmt = peso; extras = [cost, pay - pr, ans + pr];
+    } else if (T === 2) {
+      a = rand(30, 60 + m * 20); b = rand(5, a - 10); c = rand(5, 30 + m * 5); ans = a - b + c;
+      p = "The supply room had " + a + " reams of paper. " + b + " were used and then " + c + " more were delivered. How many reams are in the supply room now?";
+      ex = a + " − " + b + " + " + c + " = " + ans + ".";
+      extras = [a + b + c, a - b - c, a + b - c];
+    } else if (T === 3) {
+      v = rand(30, 50 + m * 5); t = rand(2, 6); ans = v * t;
+      p = "A bus travels at " + v + " kilometers per hour for " + t + " hours. How many kilometers does it cover?";
+      fmt = function (x) { return x + " km"; };
+      ex = v + " × " + t + " = " + fmt(ans) + ".";
+      extras = [v + t, ans + v, ans - v];
+    } else if (T === 4) {
+      mean = rand(70, 95); d1 = rand(1, 8); d2 = rand(1, 8);
+      s1 = mean + d1; s2 = mean - d2; s3 = mean + d2 - d1; ans = mean;
+      p = n1 + "'s scores in three quizzes were " + s1 + ", " + s2 + " and " + s3 + ". What is " + n1 + "'s average score?";
+      ex = "(" + s1 + " + " + s2 + " + " + s3 + ") ÷ 3 = " + (3 * mean) + " ÷ 3 = " + mean + ".";
+      extras = [mean + 1, mean - 1, s1];
+    } else if (T === 5) {
+      P = rand(2, 20) * 100; r = pick([10, 20, 25, 30, 40, 50]); ans = P * (100 - r) / 100;
+      p = "A bag priced at " + peso(P) + " is sold at a " + r + "% discount. What is the sale price?";
+      ex = "Discount = " + r + "% of " + peso(P) + " = " + peso(P * r / 100) + ". " + peso(P) + " − " + peso(P * r / 100) + " = " + peso(ans) + ".";
+      fmt = peso; extras = [P * r / 100, P + P * r / 100, P - r];
+    } else if (T === 6) {
+      k = rand(3, 4 + m); each = rand(4, 9 + m * 2); tot = k * each; ans = each;
+      p = "A box of " + tot + " pens is shared equally among " + k + " employees. How many pens does each employee get?";
+      ex = tot + " ÷ " + k + " = " + each + ".";
+      extras = [k, tot - k, each + k];
+    } else if (T === 7) {
+      l = rand(4, 10 + m); w = rand(3, l); ans = l * w;
+      p = "A rectangular room is " + l + " meters long and " + w + " meters wide. What is its area in square meters?";
+      fmt = function (x) { return x + " sq m"; };
+      ex = l + " × " + w + " = " + fmt(ans) + ".";
+      extras = [2 * (l + w), l + w, ans + l];
+    } else if (T === 8) {
+      d = pick([2, 3, 4, 5, 6, 8, 10]); nn = rand(1, d - 1); tot = d * rand(2, 3 + m); ans = tot / d * nn;
+      p = nn + "/" + d + " of the " + tot + " employees in an office are women. How many women are in the office?";
+      ex = tot + " ÷ " + d + " = " + (tot / d) + ". " + (tot / d) + " × " + nn + " = " + ans + ".";
+      extras = [tot - ans, tot / d, ans + nn];
+    } else if (T === 9) {
+      n = rand(5, 20 + m * 10); S = 2 * n + 1; ans = n + 1;
+      p = "The sum of two consecutive integers is " + S + ". What is the larger integer?";
+      ex = "The integers are " + n + " and " + (n + 1) + ", because " + n + " + " + (n + 1) + " = " + S + ". The larger is " + ans + ".";
+      extras = [n, n + 2, n - 1];
+    } else if (T === 10) {
+      a = rand(10, 40); t = rand(3, 12); ans = a;
+      p = "In " + t + " years, " + n1 + " will be " + (a + t) + " years old. How old is " + n1 + " now?";
+      ex = (a + t) + " − " + t + " = " + a + ".";
+      extras = [a + t, a + 2 * t, a - t];
+    } else if (T === 11) {
+      r = rand(10, 20 + m * 3); h = rand(2, 8); ans = r * h;
+      p = "A clerk encodes " + r + " pages per hour. How many pages will be encoded in " + h + " hours?";
+      ex = r + " × " + h + " = " + ans + ".";
+      extras = [r + h, ans + r, ans - r];
+    } else if (T === 12) {
+      P = rand(1, 10) * 1000; rt = pick([2, 3, 4, 5, 6, 8, 10]); yrs = rand(1, 4); ans = P * rt * yrs / 100;
+      p = "How much simple interest will " + peso(P) + " earn at " + rt + "% per year in " + yrs + " year" + (yrs > 1 ? "s" : "") + "?";
+      ex = "Interest = " + peso(P) + " × " + rt + "% × " + yrs + " = " + peso(ans) + ".";
+      fmt = peso; extras = [P * rt / 100, ans + P * rt / 100, ans * 2];
+    } else if (T === 13) {
+      var start = rand(6, 10) * 60 + pick([0, 15, 30, 45]);
+      var dh = rand(1, 4), dm = pick([15, 30, 45]);
+      var end = start + dh * 60 + dm;
+      p = "A seminar starts at " + fmtTime(start) + " and lasts " + dh + " hour" + (dh > 1 ? "s" : "") + " and " + dm + " minutes. What time does it end?";
+      ex = fmtTime(start) + " + " + dh + " h " + dm + " min = " + fmtTime(end) + ".";
+      var seenT = {}, outT = [];
+      [0, 15, -15, 30, -30, 60, -60].forEach(function (off) {
+        var kk = fmtTime(end + off);
+        if (outT.length < 4 && !seenT[kk]) { seenT[kk] = 1; outT.push({ key: kk, html: kk }); }
+      });
+      // always keep the correct answer, even if the loop above filled up first
+      if (!seenT[fmtTime(end)]) outT[0] = { key: fmtTime(end), html: fmtTime(end) };
+      return mkT("word|" + p, "Word problems", C_WORD, 25, p, null, shuffle(outT), fmtTime(end), ex);
+    } else if (T === 14) {
+      var base = rand(2, 10) * 20, pc = pick([5, 10, 15, 20, 25, 30, 40, 50, 60, 75]);
+      ans = base * pc / 100;
+      p = "A class has " + base + " students. If " + pc + "% of them are boys, how many boys are in the class?";
+      ex = pc + "% of " + base + " = " + ans + ".";
+      extras = [base - ans, pc, ans + 10];
+    } else {
+      var u = rand(0, 2);
+      if (u === 0) {
+        h = rand(2, 6); var mn = pick([15, 30, 45]); ans = h * 60 + mn;
+        p = "How many minutes are there in " + h + " hours and " + mn + " minutes?";
+        ex = h + " × 60 + " + mn + " = " + ans + ".";
+        extras = [h * 100 + mn, ans + 60, ans - 60];
+      } else if (u === 1) {
+        var km = rand(2, 9), mt = pick([100, 200, 250, 500]); ans = km * 1000 + mt;
+        p = "Convert " + km + " kilometers and " + mt + " meters to meters.";
+        fmt = function (x) { return commas(x) + " m"; };
+        ex = km + " × 1,000 + " + mt + " = " + fmt(ans) + ".";
+        extras = [km * 100 + mt, ans + 1000, ans - 1000];
+      } else {
+        var kg = rand(2, 9); ans = kg * 1000 + 500;
+        p = kg + ".5 kilograms equal how many grams?";
+        fmt = function (x) { return commas(x) + " g"; };
+        ex = kg + ".5 × 1,000 = " + fmt(ans) + ".";
+        extras = [kg * 100 + 50, ans * 10, ans - 500];
+      }
+    }
+    return mkT("word|" + p, "Word problems", C_WORD, 25, p, null, numChoices(ans, extras, 0, fmt), fmt(ans), ex);
+  }
+
+  /* ---------- decimals ---------- */
+  function decQuestion() {
+    var p = (range >= 50 && Math.random() < 0.5) ? 2 : 1, s = Math.pow(10, p);
+    var W = Math.max(4, Math.round(range / 4));
+    function rd() { return rand(1, W) * s + rand(1, s - 1); }
+    var t = rand(0, 4), A, B, ans, pa = p, disp, x, y, k, Q;
+    if (t === 0) {
+      A = rd(); B = rd(); ans = A + B;
+      disp = decStr(A, p) + " + " + decStr(B, p);
+    } else if (t === 1) {
+      A = rd(); B = rd();
+      if (A === B) A += s;
+      if (A < B) { x = A; A = B; B = x; }
+      ans = A - B;
+      disp = decStr(A, p) + " − " + decStr(B, p);
+    } else if (t === 2) {
+      A = rd(); k = rand(2, 9); ans = A * k;
+      disp = decStr(A, p) + " × " + k;
+    } else if (t === 3) {
+      x = rand(2, 9); y = rand(2, 9); ans = x * y; pa = 2;
+      disp = "0." + x + " × 0." + y;
+    } else {
+      k = rand(2, 9); Q = rd(); A = Q * k; ans = Q;
+      disp = decStr(A, p) + " ÷ " + k;
+    }
+    return mkN("dec|" + disp, disp, decStr(ans, pa), decChoices(ans, pa), OP_COLOR.dec, 9);
+  }
+
+  /* ---------- percentages ---------- */
+  function pctQuestion() {
+    var m = Math.max(1, Math.round(range / 20)), t = rand(0, 4);
+    var P = pick([5, 10, 15, 20, 25, 30, 40, 50, 60, 75]);
+    var pf = function (v) { return v + "%"; };
+    var N, X, A, B, p, ex, ans, inc, ch;
+    if (t === 0) {
+      N = rand(1, 4 + m) * 20; ans = P * N / 100;
+      var disp = P + "% of " + N;
+      return mkN("pct|" + disp, disp, String(ans), numChoices(ans, [N - ans, P, ans + P], 1), C_PCT, 8);
+    }
+    if (t === 1) {
+      N = rand(1, 4 + m) * 20; X = P * N / 100;
+      p = X + " is what percent of " + N + "?";
+      ex = X + " ÷ " + N + " × 100 = " + P + "%.";
+      ch = numChoices(P, [P + 5, P - 5, 100 - P], 1, pf);
+    } else if (t === 2) {
+      N = rand(1, 4 + m) * 20; X = P * N / 100;
+      p = P + "% of what number is " + X + "?";
+      ex = X + " × 100 ÷ " + P + " = " + N + ".";
+      return mkT("pct|" + p, "Fractions, decimals, percentages", C_PCT, 15, p, null,
+        numChoices(N, [X, N + 20, N - 20], 1), String(N), ex);
+    } else if (t === 3) {
+      A = rand(1, 4 + m) * 20; inc = Math.random() < 0.5;
+      B = inc ? A * (100 + P) / 100 : A * (100 - P) / 100;
+      p = "The price of an item " + (inc ? "rose" : "dropped") + " from " + peso(A) + " to " + peso(B) + ". What is the percent " + (inc ? "increase" : "decrease") + "?";
+      ex = "Change = " + peso(Math.abs(B - A)) + ". " + peso(Math.abs(B - A)) + " ÷ " + peso(A) + " × 100 = " + P + "%.";
+      ch = numChoices(P, [P + 5, P - 5, Math.round(Math.abs(B - A) / B * 100)], 1, pf);
+    } else {
+      if (Math.random() < 0.5) {
+        var dc = pick([5, 12, 25, 35, 40, 60, 75, 80, 90]);
+        p = "Express 0." + (dc < 10 ? "0" + dc : dc) + " as a percent.";
+        ans = dc;
+        ex = "0." + (dc < 10 ? "0" + dc : dc) + " × 100 = " + dc + "%.";
+      } else {
+        var dn = pick([2, 4, 5, 10, 20, 25, 50]), nm = rand(1, dn - 1);
+        ans = nm * 100 / dn;
+        p = "Express " + nm + "/" + dn + " as a percent.";
+        ex = nm + " ÷ " + dn + " × 100 = " + ans + "%.";
+      }
+      ch = numChoices(ans, [ans + 5, ans - 5, ans * 2], 1, pf);
+      P = ans;
+    }
+    return mkT("pct|" + p, "Fractions, decimals, percentages", C_PCT, 15, p, null, ch, pf(P), ex);
+  }
+
+  /* ---------- ratio and proportion ---------- */
+  function eqR(x1, y1, x2, y2) { return x1 * y2 === x2 * y1; }
+  function ratioQuestion() {
+    var t = rand(0, 5), m = Math.max(1, Math.round(range / 10));
+    var p, ex, ans, fmt = String, extras = [], n1 = pick(NAMES), n2 = pick(NAMES);
+    while (n2 === n1) n2 = pick(NAMES);
+    var pairs = [[1, 2], [1, 3], [2, 3], [3, 4], [2, 5], [3, 5], [1, 4], [4, 5]];
+    var ab, a, b, u;
+
+    if (t === 0) {
+      var it = pick(["notebooks", "pens", "folders", "envelopes", "candles"]);
+      var k = rand(2, 6); u = rand(3, 12 + m * 3); var mult = rand(2, 5);
+      var n = k * mult, c = k * u; ans = u * n;
+      p = "If " + k + " " + it + " cost " + peso(c) + ", how much do " + n + " " + it + " cost?";
+      ex = "One costs " + peso(c) + " ÷ " + k + " = " + peso(u) + ". " + n + " × " + peso(u) + " = " + peso(ans) + ".";
+      fmt = peso; extras = [ans + u, ans - u, c + n];
+    } else if (t === 1) {
+      ab = pick(pairs); a = ab[0]; b = ab[1]; u = rand(5, 10 + m * 5) * 10;
+      var T = (a + b) * u; ans = b * u;
+      p = peso(T) + " is divided between " + n1 + " and " + n2 + " in the ratio " + a + ":" + b + ". How much does " + n2 + " get?";
+      ex = a + " + " + b + " = " + (a + b) + " parts. Each part = " + peso(T) + " ÷ " + (a + b) + " = " + peso(u) + ". " + n2 + " gets " + b + " × " + peso(u) + " = " + peso(ans) + ".";
+      fmt = peso; extras = [a * u, ans + u, T / 2];
+    } else if (t === 2) {
+      var pa, pb;
+      do { pa = rand(1, 9); pb = rand(1, 9); } while (pa === pb || gcd(pa, pb) !== 1);
+      var mu = rand(2, 12), key = pa + ":" + pb, seen = {}, out = [{ key: key, html: key }];
+      seen[key] = 1;
+      shuffle([[pb, pa], [pa + 1, pb], [pa, pb + 1], [pa + pb, pb], [pa, pa + pb], [pa * 2 + 1, pb * 2]]).forEach(function (cc) {
+        var kk = cc[0] + ":" + cc[1];
+        if (out.length < 4 && cc[0] > 0 && cc[1] > 0 && !eqR(cc[0], cc[1], pa, pb) && !seen[kk]) { seen[kk] = 1; out.push({ key: kk, html: kk }); }
+      });
+      var tries = 0;
+      while (out.length < 4 && tries++ < 100) {
+        var xx = rand(1, 12), yy = rand(1, 12), k2 = xx + ":" + yy;
+        if (!seen[k2] && !eqR(xx, yy, pa, pb)) { seen[k2] = 1; out.push({ key: k2, html: k2 }); }
+      }
+      p = "Simplify the ratio " + (pa * mu) + ":" + (pb * mu) + ".";
+      ex = "Divide both terms by " + mu + ": " + key + ".";
+      return mkT("ratio|" + p, "Ratio and proportion", C_RATIO, 15, p, null, shuffle(out), key, ex);
+    } else if (t === 3) {
+      a = rand(2, 6); b = rand(2, 9); var mu2 = rand(2, 6), c2 = a * mu2; ans = b * mu2;
+      p = "Find the missing number: " + a + " : " + b + " = " + c2 + " : ?";
+      ex = "Multiply both terms of " + a + ":" + b + " by " + mu2 + ". " + b + " × " + mu2 + " = " + ans + ".";
+      extras = [c2 + b, ans + mu2, ans - mu2];
+    } else if (t === 4) {
+      var w1 = rand(2, 8), d1 = rand(2, 7) * 2, tot = w1 * d1, opts = [], w2;
+      for (w2 = 2; w2 <= 24; w2++) { if (w2 !== w1 && tot % w2 === 0) opts.push(w2); }
+      w2 = pick(opts); ans = tot / w2;
+      p = w1 + " workers can finish a job in " + d1 + " days. How many days will " + w2 + " workers need to finish the same job at the same rate?";
+      fmt = function (x) { return x + " days"; };
+      ex = "Total work = " + w1 + " × " + d1 + " = " + tot + " worker-days. " + tot + " ÷ " + w2 + " = " + fmt(ans) + ".";
+      extras = [d1, tot, ans + 1];
+    } else {
+      ab = pick(pairs); a = ab[0]; b = ab[1]; u = rand(2, 8 + m);
+      if (Math.random() < 0.5) {
+        ans = b * u;
+        p = "The ratio of boys to girls in a class is " + a + ":" + b + ". If there are " + (a * u) + " boys, how many girls are there?";
+        ex = (a * u) + " ÷ " + a + " = " + u + " per part. " + u + " × " + b + " = " + ans + " girls.";
+        extras = [a * u, a * u + b, ans + u];
+      } else {
+        ans = a * u;
+        p = "The ratio of boys to girls in a class is " + a + ":" + b + ". If there are " + ((a + b) * u) + " students in all, how many are boys?";
+        ex = (a + b) + " parts in all. " + ((a + b) * u) + " ÷ " + (a + b) + " = " + u + " per part. " + u + " × " + a + " = " + ans + " boys.";
+        extras = [b * u, ans + u, (a + b) * u - a];
+      }
+    }
+    return mkT("ratio|" + p, "Ratio and proportion", C_RATIO, 20, p, null, numChoices(ans, extras, 0, fmt), fmt(ans), ex);
+  }
+
+  /* ---------- building a round ---------- */
+  function makeFor(topic) {
+    if (topic === "basic") { var l = wholeOps(); return makeQuestion(l[rand(0, l.length - 1)]); }
+    if (topic === "seq") return seqQuestion();
+    if (topic === "word") return wordQuestion();
+    if (topic === "ratio") return ratioQuestion();
+    var f = fdpOps(), k = f[rand(0, f.length - 1)];
+    if (k === "dec") return decQuestion();
+    if (k === "pct") return pctQuestion();
+    return makeQuestion(k);
+  }
+
   function buildQuestions() {
-    var list = activeOps(), out = [], seen = {}, tries = 0;
-    while (out.length < rounds && tries++ < 600) {
-      var q = makeQuestion(list[rand(0, list.length - 1)]);
+    var list = validTopics(), out = [], seen = {}, tries = 0;
+    while (out.length < rounds && tries++ < 800) {
+      var q = makeFor(list[rand(0, list.length - 1)]);
       if (seen[q.id]) continue;
       seen[q.id] = 1;
       out.push(q);
@@ -570,7 +1080,10 @@
     return shuffle(out);
   }
 
-  function makeChoices(q) { return q.kind === "f" ? fracChoices(q) : wholeChoices(q); }
+  function makeChoices(q) {
+    if (q.kind === "n" || q.kind === "t") return q.choices;
+    return q.kind === "f" ? fracChoices(q) : wholeChoices(q);
+  }
 
   function startGame() {
     var qs = buildQuestions();
@@ -598,15 +1111,22 @@
 
   function nextQuestion() {
     var q = state.qs[state.i];
+    var txt = q.kind === "t";
     state.locked = false;
     $("card").style.setProperty("--tint", q.color);
-    $("qLabel").textContent = "Question " + (state.i + 1) + " of " + state.qs.length;
+    $("card").classList.toggle("txt", txt);
+    $("qLabel").textContent = "Question " + (state.i + 1) + " of " + state.qs.length + " · " + q.topic;
+    $("q").classList.toggle("tq", txt);
     $("q").classList.toggle("fq", q.kind === "f");
-    $("q").innerHTML = qHTML(q) + ' = <span class="ans">?</span>';
+    $("q").innerHTML = txt ? q.html : qHTML(q) + ' = <span class="ans">?</span>';
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
+    $("explain").classList.add("hidden");
+    $("explain").textContent = "";
+    $("nextBtn").classList.add("hidden");
     var box = $("options");
     box.innerHTML = "";
+    box.classList.toggle("txt", txt);
     makeChoices(q).forEach(function (c, idx) {
       var b = document.createElement("button");
       b.className = "opt";
@@ -624,6 +1144,7 @@
     if (state.locked) return;
     state.locked = true;
     var q = state.qs[state.i];
+    var txt = q.kind === "t";
     var ok = btn.dataset.v === q.key;
     var secs = (Date.now() - state.t0) / 1000;
     var opts = Array.prototype.slice.call($("options").children);
@@ -648,8 +1169,8 @@
       state.streak = 0;
       state.marks[state.i] = 0;
       state.missed.push(q);
-      $("q").innerHTML = qHTML(q) + ' = <span class="ans">' + ansHTML(q) + "</span>";
-      fb.textContent = qText(q) + " is " + q.key;
+      if (!txt) $("q").innerHTML = qHTML(q) + ' = <span class="ans">' + ansHTML(q) + "</span>";
+      fb.textContent = txt ? "Answer: " + q.ansText : qText(q) + " is " + q.key;
       fb.className = "feedback bad";
     }
     try { if (navigator.vibrate) navigator.vibrate(ok ? 15 : [40, 40, 40]); } catch (e) {}
@@ -657,10 +1178,22 @@
     $("streak").textContent = state.streak >= 2 ? state.streak + " in a row" : "";
     renderProgress();
 
-    setTimeout(function () {
-      state.i++;
-      if (state.i >= state.qs.length) finish(); else nextQuestion();
-    }, ok ? 700 : 1600);
+    if (txt && !ok) {
+      // Wrong text answer: show the explanation and wait for the player.
+      $("explain").textContent = q.explain;
+      $("explain").classList.toggle("hidden", !q.explain);
+      var nb = $("nextBtn");
+      nb.textContent = state.i + 1 >= state.qs.length ? "See results" : "Next";
+      nb.classList.remove("hidden");
+      try { nb.focus({ preventScroll: true }); } catch (e) {}
+      return;
+    }
+    setTimeout(advance, ok ? 700 : 1600);
+  }
+
+  function advance() {
+    state.i++;
+    if (state.i >= state.qs.length) finish(); else nextQuestion();
   }
 
   function finish() {
@@ -681,7 +1214,12 @@
       seen[q.id] = 1;
       var li = document.createElement("li");
       li.style.setProperty("--tint", q.color);
-      li.innerHTML = qHTML(q) + " = " + ansHTML(q);
+      if (q.kind === "t") {
+        li.className = "wide";
+        li.innerHTML = esc(q.short) + " → " + esc(q.ansText) + (q.explain ? "<small>" + esc(q.explain) + "</small>" : "");
+      } else {
+        li.innerHTML = qHTML(q) + " = " + ansHTML(q);
+      }
       list.appendChild(li);
     });
     $("missedWrap").classList.toggle("hidden", state.missed.length === 0);
@@ -692,10 +1230,16 @@
   /* ---------- wiring ---------- */
   $("start").onclick = startGame;
   $("again").onclick = startGame;
+  $("nextBtn").onclick = advance;
   $("change").onclick = function () { showBest(); show(setup); };
 
   document.addEventListener("keydown", function (e) {
-    if (game.classList.contains("hidden") || !state || state.locked) return;
+    if (game.classList.contains("hidden") || !state) return;
+    if (!$("nextBtn").classList.contains("hidden")) {
+      if (e.key === "Enter") { e.preventDefault(); advance(); }
+      return;
+    }
+    if (state.locked) return;
     var n = parseInt(e.key, 10);
     if (n >= 1 && n <= 4) {
       var b = $("options").children[n - 1];
@@ -703,6 +1247,7 @@
     }
   });
 
+  renderTopics();
   renderOps();
   renderRanges();
   renderCounts();
