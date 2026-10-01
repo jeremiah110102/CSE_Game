@@ -224,10 +224,10 @@
   .q.tq { white-space: normal; font-size: clamp(17px, 4.8vw, 21px); font-weight: 700; letter-spacing: 0; line-height: 1.45; }
   .q.tq .seq { font-size: 1.5em; font-weight: 800; letter-spacing: .03em; margin-top: 10px; line-height: 1.3; overflow-wrap: anywhere; }
   .options.txt .opt { font-size: 22px; }
-  .explain { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; line-height: 1.5; user-select: text; -webkit-user-select: text; }
+  .explain { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; line-height: 1.55; white-space: pre-line; user-select: text; -webkit-user-select: text; }
   #nextBtn { margin-top: 12px; }
   .missed li.wide { grid-column: 1 / -1; font-size: 15px; }
-  .missed li.wide small { display: block; font-weight: 600; opacity: .85; margin-top: 4px; font-size: 13px; }
+  .missed li small { display: block; font-weight: 600; opacity: .85; margin-top: 4px; font-size: 13px; white-space: pre-line; }
 
   /* Touch screens: no keyboard hints, roomier tap targets */
   @media (hover: none) and (pointer: coarse) {
@@ -991,7 +991,7 @@
     return shuffle(out);
   }
 
-  // Text question: a sentence or two, four answers, and an explanation shown after a wrong answer.
+  // Text question: a sentence or two, four answers, and a short learning explanation.
   function mkT(id, topic, color, fast, plain, html, choices, key, explain) {
     return {
       kind: "t", id: id, topic: topic, color: color, fast: fast,
@@ -1566,6 +1566,72 @@
     return q.kind === "f" ? fracChoices(q) : wholeChoices(q);
   }
 
+  function questionExplanation(q) {
+    if (q.kind === "w") {
+      var equation = q.x + " " + q.op + " " + q.y + " = " + q.a;
+      var check = q.op === "+" ? q.a + " − " + q.y + " = " + q.x :
+        q.op === "−" ? q.a + " + " + q.y + " = " + q.x :
+        q.op === "×" ? q.a + " ÷ " + q.y + " = " + q.x : q.a + " × " + q.y + " = " + q.x;
+      var operation = q.op === "+" ? "Add the two numbers." : q.op === "−" ? "Subtract the second number from the first." :
+        q.op === "×" ? "Multiply the number of groups by the amount in each group." : "Divide the first number by the second.";
+      return "Step 1: Choose the operation. " + operation + "\nStep 2: Calculate: " + equation + ".\nStep 3: Check with the inverse operation: " + check + ".";
+    }
+    if (q.kind === "f") {
+      var left = q.f1, right = q.f2, rawN, rawD, work;
+      if (q.op === "+" || q.op === "−") {
+        var common = left.d / gcd(left.d, right.d) * right.d;
+        var leftN = left.n * (common / left.d), rightN = right.n * (common / right.d);
+        rawN = q.op === "+" ? leftN + rightN : leftN - rightN;
+        rawD = common;
+        work = "Use a common denominator of " + common + ": " + fkey(left) + " = " + leftN + "/" + common + " and " + fkey(right) + " = " + rightN + "/" + common + ".\nThen " + leftN + " " + q.op + " " + rightN + " = " + rawN + ", giving " + rawN + "/" + rawD + ".";
+      } else if (q.op === "×") {
+        rawN = left.n * right.n; rawD = left.d * right.d;
+        work = "Multiply the numerators and denominators: (" + left.n + " × " + right.n + ") / (" + left.d + " × " + right.d + ") = " + rawN + "/" + rawD + ".";
+      } else {
+        rawN = left.n * right.d; rawD = left.d * right.n;
+        work = "Turn division into multiplication by the reciprocal: " + fkey(left) + " × " + right.d + "/" + right.n + " = " + rawN + "/" + rawD + ".";
+      }
+      var simplified = red(rawN, rawD);
+      return "Step 1: " + work + "\nStep 2: Simplify " + rawN + "/" + rawD + " by dividing the top and bottom by " + gcd(rawN, rawD) + ".\nAnswer: " + fkey(simplified) + ".";
+    }
+    if (q.kind === "n") {
+      var percent = q.disp.match(/^(\d+(?:\.\d+)?)% of (\d+(?:\.\d+)?)$/);
+      if (percent) {
+        var rate = Number(percent[1]), base = Number(percent[2]);
+        return "Step 1: Convert " + rate + "% to a decimal by dividing by 100: " + rate + " ÷ 100 = " + (rate / 100) + ".\nStep 2: Find that part of " + base + ": " + base + " × " + (rate / 100) + " = " + q.key + ".\nAnswer: " + q.key + ".";
+      }
+      var expression = q.disp.match(/^(\d+(?:\.\d+)?)\s*([+−×÷])\s*(\d+(?:\.\d+)?)$/);
+      if (expression) {
+        var a = expression[1], op = expression[2], b = expression[3], places = Math.max((a.split(".")[1] || "").length, (b.split(".")[1] || "").length);
+        if (op === "+" || op === "−") {
+          var alignedA = Number(a).toFixed(places), alignedB = Number(b).toFixed(places);
+          return "Step 1: Align the decimal places: " + alignedA + " " + op + " " + alignedB + ".\nStep 2: " + (op === "+" ? "Add" : "Subtract") + " the aligned numbers: " + alignedA + " " + op + " " + alignedB + " = " + q.key + ".\nAnswer: " + q.key + ".";
+        }
+        if (op === "×") {
+          var wholeA = a.replace(".", ""), wholeB = b.replace(".", ""), totalPlaces = (a.split(".")[1] || "").length + (b.split(".")[1] || "").length;
+          return "Step 1: Multiply without the decimal points: " + wholeA + " × " + wholeB + " = " + (Number(wholeA) * Number(wholeB)) + ".\nStep 2: Put the decimal point back using " + totalPlaces + " total decimal place" + (totalPlaces === 1 ? "" : "s") + ".\nAnswer: " + q.key + ".";
+        }
+        var scale = Math.pow(10, places), scaledA = Number(a) * scale, scaledB = Number(b) * scale;
+        return "Step 1: Multiply both numbers by " + scale + " to make the divisor a whole number: " + a + " ÷ " + b + " becomes " + scaledA + " ÷ " + scaledB + ".\nStep 2: Divide: " + scaledA + " ÷ " + scaledB + " = " + q.key + ".\nAnswer: " + q.key + ".";
+      }
+      return "Step 1: Follow the operation shown: " + q.disp + ".\nStep 2: Evaluate it carefully and check your calculation.\nAnswer: " + q.key + ".";
+    }
+    var reason = q.explain || "Use the information in the question to identify the rule that applies.";
+    var topic = (q.topic || "").toLowerCase(), method;
+    if (topic.indexOf("verbal") !== -1) method = "Read the full sentence or passage, find the meaning or grammar clue, then check that the chosen answer fits the context.";
+    else if (topic.indexOf("general information") !== -1) method = "Identify the Constitution provision, law, or civic principle being tested, then match the question to that specific rule.";
+    else if (topic.indexOf("analytical") !== -1) method = "Separate facts stated in the question from assumptions, apply the relationship or rule consistently, and confirm the conclusion follows from the facts.";
+    else if (topic.indexOf("clerical") !== -1) method = "Apply the relevant filing, spelling, comparison, or arithmetic rule carefully; check the details in order before choosing.";
+    else if (topic.indexOf("pemdas") !== -1 || topic.indexOf("order of operations") !== -1) method = "Work in order: parentheses, exponents, multiplication and division from left to right, then addition and subtraction from left to right.";
+    else if (topic.indexOf("geometry") !== -1 || topic.indexOf("area") !== -1 || topic.indexOf("circle") !== -1) method = "Identify the shape, choose the matching formula, substitute the measurements, calculate, and keep the correct units.";
+    else if (topic.indexOf("algebra") !== -1 || topic.indexOf("equation") !== -1) method = "Keep both sides balanced by doing the same operation to each side; use inverse operations, then substitute the result to check it.";
+    else if (topic.indexOf("sequence") !== -1) method = "Compare the terms, test the same pattern across the whole sequence, then apply that rule to the missing or next term.";
+    else if (topic.indexOf("ratio") !== -1) method = "Treat the ratio numbers as equal-sized parts; find the value of one part, then scale to the number of parts requested.";
+    else if (topic.indexOf("word problems") !== -1) method = "List the given quantities, decide which operation connects them, calculate, and check that the result answers the question with the right units.";
+    else method = "Use the stated rule, then verify that the result answers exactly what the question asks.";
+    return "Reasoning: " + reason + "\n\nHow to solve it: " + method + "\n\nCorrect answer: " + (q.ansText || q.key) + ".";
+  }
+
   function setPauseIcon(isPaused) {
     var button = $("pauseGame");
     button.innerHTML = isPaused
@@ -1727,11 +1793,11 @@
     $("score").textContent = state.score + " pts";
     $("streak").textContent = state.streak >= 2 ? state.streak + " in a row" : "";
     renderProgress();
+    $("explain").textContent = questionExplanation(q);
+    $("explain").classList.remove("hidden");
 
-    if (txt && !ok) {
-      // Wrong text answer: show the explanation and wait for the player.
-      $("explain").textContent = q.explain;
-      $("explain").classList.toggle("hidden", !q.explain);
+    if (txt || ok) {
+      // Keep the explanation visible until the player is ready to continue.
       var nb = $("nextBtn");
       nb.textContent = state.i + 1 >= state.qs.length ? "See results" : "Next";
       nb.classList.remove("hidden");
@@ -1771,11 +1837,12 @@
       seen[q.id] = 1;
       var li = document.createElement("li");
       li.style.setProperty("--tint", q.color);
+      var detail = "<small>" + esc(questionExplanation(q)) + "</small>";
       if (q.kind === "t") {
         li.className = "wide";
-        li.innerHTML = esc(q.short) + " → " + esc(q.ansText) + (q.explain ? "<small>" + esc(q.explain) + "</small>" : "");
+        li.innerHTML = esc(q.short) + " → " + esc(q.ansText) + detail;
       } else {
-        li.innerHTML = qHTML(q) + " = " + ansHTML(q);
+        li.innerHTML = qHTML(q) + " = " + ansHTML(q) + detail;
       }
       list.appendChild(li);
     });
