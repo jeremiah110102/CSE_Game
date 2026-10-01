@@ -88,6 +88,15 @@
   .btn:disabled { opacity: .35; cursor: not-allowed; }
   .btn.alt { background: transparent; color: var(--ink); border: 2px solid var(--ink); }
   .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .game-controls { display: flex; justify-content: flex-end; gap: 8px; margin: 0 0 12px; }
+  .icon-btn {
+    display: inline-grid; place-items: center; width: 42px; height: 42px; padding: 0;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink);
+  }
+  .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .icon-btn:active { transform: scale(.96); }
+  .paused-banner { padding: 12px; margin: 0 0 12px; border-radius: 12px; background: var(--line); text-align: center; font-weight: 800; }
 
   .best { color: var(--ink-soft); font-size: 14px; margin: 14px 0 0; text-align: center; }
   .hidden { display: none !important; }
@@ -294,7 +303,12 @@
 
     <div id="practicePanel" role="tabpanel" aria-labelledby="practiceTab">
     <h2>Topics</h2>
-    <div class="topics" id="topicList"></div>
+    <div class="row topic-actions">
+      <button class="link" id="topicsSelectAll" type="button">Select all</button>
+      <button class="link" id="topicsSelectNone" type="button">Unselect all</button>
+      <button class="link" id="topicsVisibility" type="button" aria-expanded="true" aria-controls="topicList">Hide topics</button>
+    </div>
+    <div class="topics" id="topicList" role="group" aria-label="Practice topics"></div>
 
     <div class="detail" id="basicBlock">
       <h3>Basic operations</h3>
@@ -504,6 +518,15 @@
       <div class="timer" id="timer" role="timer" aria-label="Elapsed time">00:00</div>
       <div class="streak" id="streak"></div>
     </div>
+    <div class="game-controls">
+      <button class="icon-btn" id="pauseGame" type="button" aria-label="Pause quiz" title="Pause quiz">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14M16 5v14"/></svg>
+      </button>
+      <button class="icon-btn" id="exitGame" type="button" aria-label="Exit to setup" title="Exit to setup">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h8v18h-8"/></svg>
+      </button>
+    </div>
+    <p class="paused-banner hidden" id="pausedBanner" role="status">Paused — timer stopped. Press Resume to continue.</p>
     <div class="progress" id="progress"></div>
 
     <div class="card" id="card">
@@ -553,7 +576,8 @@
   var range = 20;
   var selected = new Set([2, 3, 4, 5, 6, 7, 8, 9]);
   var state = null;
-  var timerId = null, timerStartedAt = 0, audioContext = null;
+  var timerId = null, timerStartedAt = 0, timerElapsedMs = 0, timerPaused = true, audioContext = null;
+  var advanceTimerId = null, advanceTimerAt = 0, advanceRemainingMs = 0, advanceWasPending = false;
 
   var $ = function (id) { return document.getElementById(id); };
   var setup = $("setup"), game = $("game"), results = $("results");
@@ -596,20 +620,56 @@
     return (h ? h + ":" + mm : mm) + ":" + String(s).padStart(2, "0");
   }
   function updateTimer() {
-    var elapsed = Math.floor((Date.now() - timerStartedAt) / 1000);
+    var elapsedMs = timerElapsedMs + (timerPaused ? 0 : Math.max(0, Date.now() - timerStartedAt));
+    var elapsed = Math.floor(elapsedMs / 1000);
     $("timer").textContent = formatElapsed(elapsed);
   }
   function startTimer() {
     if (timerId) clearInterval(timerId);
+    timerElapsedMs = 0;
+    timerPaused = false;
+    timerStartedAt = Date.now();
+    updateTimer();
+    timerId = setInterval(updateTimer, 250);
+  }
+  function pauseTimer() {
+    if (timerPaused) return;
+    timerElapsedMs += Math.max(0, Date.now() - timerStartedAt);
+    timerPaused = true;
+    if (timerId) clearInterval(timerId);
+    timerId = null;
+    updateTimer();
+  }
+  function resumeTimer() {
+    if (!timerPaused) return;
+    timerPaused = false;
     timerStartedAt = Date.now();
     updateTimer();
     timerId = setInterval(updateTimer, 250);
   }
   function stopTimer() {
+    if (!timerPaused) timerElapsedMs += Math.max(0, Date.now() - timerStartedAt);
+    timerPaused = true;
     if (timerId) clearInterval(timerId);
     timerId = null;
     updateTimer();
     return $("timer").textContent;
+  }
+  function clearAutoAdvance() {
+    if (advanceTimerId) clearTimeout(advanceTimerId);
+    advanceTimerId = null;
+    advanceRemainingMs = 0;
+    advanceWasPending = false;
+  }
+  function scheduleAutoAdvance(delay) {
+    advanceRemainingMs = delay;
+    advanceTimerAt = Date.now() + delay;
+    advanceTimerId = setTimeout(function () {
+      advanceTimerId = null;
+      advanceRemainingMs = 0;
+      advanceWasPending = false;
+      advance();
+    }, delay);
   }
   function getAudioContext() {
     if (!audioContext) {
@@ -695,7 +755,7 @@
   var W_OPS = ["×", "+", "−", "÷"];
   var FR_OPS = ["f×", "f+", "f−", "f÷"];
   var F_OPS = FR_OPS.concat(["dec", "pct"]);
-  var RANGES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  var RANGES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000, 5000, 10000];
   var LABEL = {
     "×": ["×", "Multiply"], "+": ["+", "Add"], "−": ["−", "Subtract"], "÷": ["÷", "Divide"],
     "f×": ["×", "Multiply"], "f+": ["+", "Add"], "f−": ["−", "Subtract"], "f÷": ["÷", "Divide"],
@@ -790,7 +850,7 @@
       var b = document.createElement("button");
       b.className = "rng";
       b.setAttribute("aria-pressed", range === r ? "true" : "false");
-      b.textContent = r;
+      b.textContent = commas(r);
       b.addEventListener("click", function () { range = r; renderRanges(); updateStart(); });
       box.appendChild(b);
     });
@@ -1506,18 +1566,81 @@
     return q.kind === "f" ? fracChoices(q) : wholeChoices(q);
   }
 
+  function setPauseIcon(isPaused) {
+    var button = $("pauseGame");
+    button.innerHTML = isPaused
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5l12 7-12 7z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14M16 5v14"/></svg>';
+    var label = isPaused ? "Resume quiz" : "Pause quiz";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+
   function startGame(isMock) {
+    clearAutoAdvance();
     isMock = !!isMock;
     var qs = buildQuestions(isMock);
-    state = { qs: qs, i: 0, score: 0, streak: 0, correct: 0, missed: [], marks: [], locked: false, t0: 0, isMock: isMock };
+    state = { qs: qs, i: 0, score: 0, streak: 0, correct: 0, missed: [], marks: [], locked: false, paused: false, nextWasEnabled: false, t0: 0, isMock: isMock };
     $("congrats").classList.add("hidden");
     $("encourage").classList.add("hidden");
+    $("pausedBanner").classList.add("hidden");
+    setPauseIcon(false);
+    $("nextBtn").disabled = false;
     show(game);
     renderProgress();
     $("score").textContent = "0 pts";
     $("streak").textContent = "";
     startTimer();
     nextQuestion();
+  }
+
+  function togglePauseGame() {
+    if (!state) return;
+    var next = $("nextBtn");
+    var options = Array.prototype.slice.call($("options").children);
+    if (!state.paused) {
+      state.paused = true;
+      pauseTimer();
+      state.nextWasEnabled = !next.classList.contains("hidden") && !next.disabled;
+      next.disabled = true;
+      if (!state.locked) options.forEach(function (option) { option.disabled = true; });
+      if (advanceTimerId) {
+        advanceRemainingMs = Math.max(0, advanceTimerAt - Date.now());
+        clearTimeout(advanceTimerId);
+        advanceTimerId = null;
+        advanceWasPending = true;
+      }
+      setPauseIcon(true);
+      $("pausedBanner").classList.remove("hidden");
+      return;
+    }
+    state.paused = false;
+    resumeTimer();
+    if (!state.locked) options.forEach(function (option) { option.disabled = false; });
+    next.disabled = next.classList.contains("hidden") ? false : !state.nextWasEnabled;
+    setPauseIcon(false);
+    $("pausedBanner").classList.add("hidden");
+    if (advanceWasPending && state.locked && next.classList.contains("hidden")) {
+      var remaining = advanceRemainingMs;
+      advanceWasPending = false;
+      scheduleAutoAdvance(remaining);
+    } else {
+      advanceWasPending = false;
+      advanceRemainingMs = 0;
+    }
+  }
+
+  function exitGame() {
+    if (!state) return;
+    var wasMock = state.isMock;
+    stopTimer();
+    clearAutoAdvance();
+    state = null;
+    $("pausedBanner").classList.add("hidden");
+    setPauseIcon(false);
+    if (wasMock) { setSetupTab("mock"); showMockBest(); }
+    else { setSetupTab("practice"); showBest(); }
+    show(setup);
   }
 
   function renderProgress() {
@@ -1549,6 +1672,7 @@
     $("explain").classList.add("hidden");
     $("explain").textContent = "";
     $("nextBtn").classList.add("hidden");
+    $("nextBtn").disabled = false;
     var box = $("options");
     box.innerHTML = "";
     box.classList.toggle("txt", txt);
@@ -1566,7 +1690,7 @@
   }
 
   function answer(btn) {
-    if (state.locked) return;
+    if (state.locked || state.paused) return;
     state.locked = true;
     var q = state.qs[state.i];
     var txt = q.kind === "t";
@@ -1614,10 +1738,11 @@
       try { nb.focus({ preventScroll: true }); } catch (e) {}
       return;
     }
-    setTimeout(advance, ok ? 700 : 1600);
+    scheduleAutoAdvance(ok ? 700 : 1600);
   }
 
   function advance() {
+    if (!state || state.paused) return;
     state.i++;
     if (state.i >= state.qs.length) finish(); else nextQuestion();
   }
@@ -1666,6 +1791,24 @@
   $("startMock").onclick = function () { startGame(true); };
   $("again").onclick = function () { startGame(!!(state && state.isMock)); };
   $("nextBtn").onclick = advance;
+  $("pauseGame").onclick = togglePauseGame;
+  $("exitGame").onclick = exitGame;
+  $("topicsSelectAll").onclick = function () {
+    TOPICS.forEach(function (topic) { topics.add(topic.id); });
+    renderTopics();
+    updateStart();
+  };
+  $("topicsSelectNone").onclick = function () {
+    topics.clear();
+    renderTopics();
+    updateStart();
+  };
+  $("topicsVisibility").onclick = function () {
+    var list = $("topicList"), shouldHide = !list.classList.contains("hidden");
+    list.classList.toggle("hidden", shouldHide);
+    this.textContent = shouldHide ? "Show topics" : "Hide topics";
+    this.setAttribute("aria-expanded", shouldHide ? "false" : "true");
+  };
   $("practiceTab").onclick = function () { setSetupTab("practice"); };
   $("mockExamTab").onclick = function () { showMockBest(); setSetupTab("mock"); };
   $("studyBookTab").onclick = function () { setSetupTab("book"); };
@@ -1677,6 +1820,7 @@
 
   document.addEventListener("keydown", function (e) {
     if (game.classList.contains("hidden") || !state) return;
+    if (state.paused) return;
     if (!$("nextBtn").classList.contains("hidden")) {
       if (e.key === "Enter") { e.preventDefault(); advance(); }
       return;
