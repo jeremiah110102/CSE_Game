@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Numerical Ability Sprint</title>
+<title>Civil Service Exam Practice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;700;800&display=swap" rel="stylesheet">
@@ -96,6 +96,7 @@
   .hud { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; margin-bottom: 10px; }
   .hud .score { font-size: 22px; font-weight: 800; }
   .hud .streak { color: var(--ink-soft); font-size: 14px; min-height: 1.4em; }
+  .hud .timer { color: var(--ink-soft); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .progress { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin-bottom: 16px; }
   .progress i { height: 8px; border-radius: 4px; background: var(--line); }
   .progress i.done { background: var(--good); }
@@ -139,6 +140,7 @@
   .result-top { text-align: center; margin-bottom: 18px; }
   .result-top .big { font-size: clamp(56px, 18vw, 88px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
   .result-top p { margin: 6px 0 0; color: var(--ink-soft); }
+  .result-top #congrats { margin-top: 12px; color: var(--good); font-size: 18px; font-weight: 800; }
   .missed { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
   .missed li {
     border-radius: 10px; padding: 12px; font-weight: 800; font-size: 18px;
@@ -274,8 +276,8 @@
 
   <!-- Setup screen -->
   <section id="setup">
-    <h1>Numerical Ability</h1>
-    <p class="sub">Civil Service Exam practice. Pick your topics, then answer as fast as you can.</p>
+    <h1>Civil Service Exam Practice</h1>
+    <p class="sub">Practice numerical, verbal, general information, analytical, and clerical ability. Choose topics, then answer as fast as you can.</p>
 
     <h2>Topics</h2>
     <div class="topics" id="topicList"></div>
@@ -317,6 +319,7 @@
   <section id="game" class="hidden" aria-live="off">
     <div class="hud">
       <div class="score" id="score">0 pts</div>
+      <div class="timer" id="timer" role="timer" aria-label="Elapsed time">00:00</div>
       <div class="streak" id="streak"></div>
     </div>
     <div class="progress" id="progress"></div>
@@ -337,6 +340,7 @@
     <div class="result-top">
       <div class="big" id="finalScore"></div>
       <p id="finalLine"></p>
+      <p id="congrats" class="hidden" role="status">Congratulations! You scored at least 80% — great work!</p>
     </div>
     <div id="missedWrap">
       <h2>Worth another look</h2>
@@ -366,6 +370,7 @@
   var range = 20;
   var selected = new Set([2, 3, 4, 5, 6, 7, 8, 9]);
   var state = null;
+  var timerId = null, timerStartedAt = 0, audioContext = null;
 
   var $ = function (id) { return document.getElementById(id); };
   var setup = $("setup"), game = $("game"), results = $("results");
@@ -389,6 +394,65 @@
   }
   function saveBest(c, n) {
     try { localStorage.setItem(bestKey(c), String(n)); } catch (e) {}
+  }
+  function formatElapsed(seconds) {
+    var h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = seconds % 60;
+    var mm = h ? String(m).padStart(2, "0") : String(m);
+    return (h ? h + ":" + mm : mm) + ":" + String(s).padStart(2, "0");
+  }
+  function updateTimer() {
+    var elapsed = Math.floor((Date.now() - timerStartedAt) / 1000);
+    $("timer").textContent = formatElapsed(elapsed);
+  }
+  function startTimer() {
+    if (timerId) clearInterval(timerId);
+    timerStartedAt = Date.now();
+    updateTimer();
+    timerId = setInterval(updateTimer, 250);
+  }
+  function stopTimer() {
+    if (timerId) clearInterval(timerId);
+    timerId = null;
+    updateTimer();
+    return $("timer").textContent;
+  }
+  function getAudioContext() {
+    if (!audioContext) {
+      var AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return null;
+      audioContext = new AudioCtor();
+    }
+    if (audioContext.state === "suspended") audioContext.resume().catch(function () {});
+    return audioContext;
+  }
+  function playTone(ctx, frequency, at, duration, volume) {
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(frequency, at);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(volume, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(at); osc.stop(at + duration + 0.02);
+  }
+  function playAnswerSound(correct) {
+    try {
+      var ctx = getAudioContext();
+      if (!ctx) return;
+      var now = ctx.currentTime;
+      var notes = correct ? [660, 880] : [240, 180];
+      notes.forEach(function (n, i) { playTone(ctx, n, now + i * 0.12, 0.16, 0.08); });
+    } catch (e) {}
+  }
+  function playCongratsSong() {
+    try {
+      var ctx = getAudioContext();
+      if (!ctx) return;
+      // A short, original celebratory fanfare synthesized with Web Audio.
+      var melody = [523.25, 659.25, 783.99, 1046.5, 987.77, 783.99, 880, 1046.5];
+      var startAt = ctx.currentTime + 0.08;
+      melody.forEach(function (n, i) { playTone(ctx, n, startAt + i * 0.2, 0.24, 0.09); });
+    } catch (e) {}
   }
   function showBest() {
     var b = loadBest(rounds);
@@ -431,7 +495,11 @@
     { id: "seq", name: "Number sequences", desc: "Find the next or missing number", color: "#7A86D3" },
     { id: "word", name: "Word problems", desc: "Money, time, speed, age and more", color: "#3CC2C9" },
     { id: "fdp", name: "Fractions, decimals, percentages", desc: "Work with parts of a whole", color: "#6CC46A" },
-    { id: "ratio", name: "Ratio and proportion", desc: "Sharing, scaling and comparing", color: "#8A68B8" }
+    { id: "ratio", name: "Ratio and proportion", desc: "Sharing, scaling and comparing", color: "#8A68B8" },
+    { id: "verbal", name: "Verbal Ability", desc: "Vocabulary, grammar, completion, reading and paragraph order", color: "#E97855" },
+    { id: "general", name: "General Information", desc: "Constitution, RA 6713, peace and rights, environment", color: "#3D9B86" },
+    { id: "analytical", name: "Analytical Ability", desc: "Analogy, logic, assumptions, data and problem solving", color: "#C05C9B" },
+    { id: "clerical", name: "Clerical Ability (Subprofessional level)", desc: "Filing, alphabetizing, spelling and clerical operations", color: "#5277BD" }
   ];
   var topics = new Set(TOPICS.map(function (t) { return t.id; }));
 
@@ -1007,12 +1075,105 @@
     return mkT("ratio|" + p, "Ratio and proportion", C_RATIO, 20, p, null, numChoices(ans, extras, 0, fmt), fmt(ans), ex);
   }
 
+  /* ---------- Civil Service verbal, general information, analytical and clerical practice ---------- */
+  // Each item is [domain, prompt, correct answer, three distractors, explanation].
+  // Philippine law and constitutional items are for general exam practice; consult current official sources for legal advice.
+  var CIVIL_BANKS = {
+    verbal: [
+      ["Word meaning / vocabulary", "In the sentence ‘The committee reached a **unanimous** decision,’ what does unanimous mean?", "Agreed to by everyone", ["Made without discussion", "Delayed until later", "Opposed by most members"], "Unanimous means all members agree."],
+      ["Word meaning / vocabulary", "Choose the closest meaning of **diligent**.", "Hardworking and careful", ["Careless", "Unwilling", "Uncertain"], "A diligent person works carefully and persistently."],
+      ["Word meaning / vocabulary", "Which word is the opposite of **scarce**?", "Abundant", ["Rare", "Limited", "Insufficient"], "Scarce means in short supply; abundant means plentiful."],
+      ["Word meaning / vocabulary", "A **concise** report is one that is…", "Brief but clear", ["Long and repetitive", "Difficult to verify", "Written informally"], "Concise means expressing much in few words."],
+      ["Word meaning / vocabulary", "In ‘The new rule was implemented immediately,’ implemented means…", "Put into effect", ["Debated privately", "Written down only", "Cancelled"], "To implement is to carry out or put into effect."],
+      ["Grammar and correct usage", "Choose the grammatically correct sentence.", "Each of the applicants has submitted a form.", ["Each of the applicants have submitted a form.", "Each applicants has submitted a form.", "Each of the applicant have submitted a form."], "The singular subject ‘each’ takes ‘has.’"],
+      ["Grammar and correct usage", "Choose the correct verb: ‘Neither the director nor the employees ___ available.’", "are", ["is", "was", "be"], "With neither/nor, the verb generally agrees with the nearer subject; ‘employees’ is plural."],
+      ["Grammar and correct usage", "Which sentence uses the pronoun correctly?", "The supervisor spoke to Maria and me.", ["The supervisor spoke to Maria and I.", "The supervisor spoke to she and Maria.", "The supervisor spoke to Maria and myself."], "The preposition ‘to’ takes the object pronoun ‘me.’"],
+      ["Grammar and correct usage", "Choose the correct word: ‘The office revised ___ filing procedure.’", "its", ["it's", "their", "it is'"], "‘Its’ is the possessive form; ‘it's’ means ‘it is.’"],
+      ["Grammar and correct usage", "Choose the sentence with correct subject–verb agreement.", "The list of requirements is on the desk.", ["The list of requirements are on the desk.", "The requirements list are on the desk.", "The list of requirements were on the desk."], "The subject is singular ‘list’; the phrase ‘of requirements’ does not change it."],
+      ["Sentence completion", "The records were incomplete; ___, the application could not be processed.", "therefore", ["meanwhile", "for example", "otherwise"], "‘Therefore’ signals the result of the incomplete records."],
+      ["Sentence completion", "Although the office was busy, the staff remained ___ and courteous.", "efficient", ["efficiently", "efficiency", "more efficient than"], "An adjective is needed to describe ‘staff’ alongside ‘courteous.’"],
+      ["Sentence completion", "Please submit the form ___ Friday so it can be reviewed on time.", "by", ["among", "during", "between"], "‘By Friday’ sets a deadline no later than Friday."],
+      ["Sentence completion", "The policy applies to all employees, ___ of rank.", "regardless", ["instead", "because", "despite of"], "‘Regardless of’ means without being affected by."],
+      ["Reading comprehension", "Read: ‘The city library extended its weekday hours after a survey found that many residents could not visit before 5 p.m. After three months, evening visits increased.’ What prompted the change?", "A survey showed residents needed later hours.", ["The library had fewer books.", "The city shortened the workweek.", "Evening visits had already declined."], "The survey found many residents could not visit before 5 p.m."],
+      ["Reading comprehension", "Read: ‘A records unit scanned older files to make them easier to retrieve. Paper originals were retained according to the agency's retention schedule.’ What can be concluded?", "Digitization did not replace required paper retention.", ["All original files were destroyed.", "Only new files were scanned.", "The retention schedule was discontinued."], "The passage says paper originals remained subject to the retention schedule."],
+      ["Reading comprehension", "Read: ‘To reduce missed appointments, the clinic began sending text reminders. The number of missed appointments fell the following month.’ Which statement is supported?", "Missed appointments decreased after reminders began.", ["Every patient received a reminder.", "The clinic reduced its hours.", "Text reminders were the only possible cause."], "The passage reports a decrease afterward, but does not establish that reminders were the only cause."],
+      ["Paragraph organization", "Arrange the ideas: (1) Finally, submit the signed form to the records desk. (2) First, complete every required field. (3) Then, review the entries for accuracy. Choose the best order.", "2–3–1", ["1–2–3", "3–1–2", "2–1–3"], "The sequence markers ‘First,’ ‘Then,’ and ‘Finally’ establish the order."],
+      ["Paragraph organization", "Which sentence best opens a paragraph about keeping public records reliable?", "Accurate records help agencies make decisions and answer public requests.", ["For example, the folder was blue.", "This is why it happened yesterday.", "In conclusion, those were the forms."], "The first sentence introduces the topic and gives a clear central idea."],
+      ["Paragraph organization", "Choose the best concluding sentence for a paragraph explaining why proofreading official letters matters.", "A final review helps prevent errors and supports clear communication.", ["The office also has several desks.", "First, choose a suitable font.", "Some letters are written on Monday."], "The sentence summarizes the value of proofreading."],
+      ["Paragraph organization", "Arrange: (1) As a result, the office located the file quickly. (2) Staff labeled each folder with a consistent code. (3) They also updated the index to match the new labels.", "2–3–1", ["1–2–3", "3–1–2", "2–1–3"], "The actions come first; ‘As a result’ introduces the outcome."]
+    ],
+    general: [
+      ["Philippine Constitution", "Under the 1987 Philippine Constitution, which right is expressly protected in Article II, Section 16?", "The right to a balanced and healthful ecology", ["A right to free private vehicles", "A right to tax exemption for all businesses", "A right to unlimited use of natural resources"], "Article II, Section 16 directs the State to protect and advance the right to a balanced and healthful ecology."],
+      ["Philippine Constitution", "Article III of the 1987 Constitution is known as the…", "Bill of Rights", ["Article on Local Government", "National Economy and Patrimony", "Transitory Provisions"], "Article III is titled ‘Bill of Rights.’"],
+      ["Philippine Constitution", "The Constitution states that no person shall be deprived of life, liberty, or property without…", "due process of law", ["a public referendum", "approval by a local council", "a written request from a private citizen"], "This protection appears in Article III, Section 1."],
+      ["Philippine Constitution", "Under Article XI, Section 1, public office is…", "a public trust", ["a private entitlement", "a temporary business license", "a reward for political support"], "Article XI, Section 1 declares that public office is a public trust."],
+      ["RA 6713", "What is the official short title of Republic Act No. 6713?", "Code of Conduct and Ethical Standards for Public Officials and Employees", ["Public Records Modernization Act", "Government Service Eligibility Code", "Local Officials Compensation Act"], "Section 1 gives RA 6713 this title."],
+      ["RA 6713", "Which norm under RA 6713 requires service regardless of party affiliation or preference?", "Political neutrality", ["Simple living", "National preference", "Private interest"], "RA 6713 Section 4 includes political neutrality among its norms."],
+      ["RA 6713", "RA 6713 says government resources and powers should be used efficiently, effectively, honestly, and economically, especially to avoid…", "wastage in public funds and revenues", ["public consultations", "all written procedures", "competitive examinations"], "This is part of the commitment to public interest norm in Section 4."],
+      ["RA 6713", "Under RA 6713, public officials and employees must uphold ___ over personal interest.", "public interest", ["party interest", "family interest", "business interest"], "Section 2 and the Section 4 norms prioritize public interest."],
+      ["Peace and human rights", "Which constitutional protection most directly requires equal treatment under the law?", "Equal protection of the laws", ["Freedom from taxation", "Right to hold public office without qualification", "Right to disregard court orders"], "Article III, Section 1 guarantees equal protection of the laws."],
+      ["Peace and human rights", "Which is a peaceful way to address a community disagreement?", "Listen to affected groups and seek a fair, nonviolent resolution.", ["Threaten people who disagree.", "Spread unverified accusations.", "Prevent one group from speaking."], "Dialogue and nonviolent resolution support peace and respect for rights."],
+      ["Environmental protection", "Which action best helps reduce waste at a public office?", "Reuse materials where practical and segregate waste for proper disposal.", ["Mix all waste and burn it outdoors.", "Print every email automatically.", "Dispose of batteries with food waste."], "Waste reduction, reuse, and proper segregation help limit environmental harm."],
+      ["Environmental protection", "Which constitutional section directs the State to protect and advance the right to a balanced and healthful ecology?", "Article II, Section 16", ["Article III, Section 1", "Article XI, Section 1", "Article VI, Section 1"], "The ecology provision is Article II, Section 16 of the 1987 Constitution."]
+    ],
+    analytical: [
+      ["Analogy", "Bird is to nest as bee is to…", "hive", ["web", "den", "stable"], "A nest is a bird's dwelling; a hive is a bee's dwelling."],
+      ["Analogy", "Thermometer is to temperature as barometer is to…", "air pressure", ["distance", "weight", "sound"], "A thermometer measures temperature; a barometer measures air pressure."],
+      ["Analogy", "Editor is to manuscript as auditor is to…", "accounts", ["building plans", "weather", "passengers"], "An editor reviews a manuscript; an auditor examines accounts."],
+      ["Logic", "All clerks in Unit A completed training. Liza works in Unit A. What must be true?", "Liza completed training.", ["Liza teaches the training.", "Only Liza completed training.", "Liza works in every unit."], "If all members of Unit A completed training and Liza is one of them, she did too."],
+      ["Logic", "No archived files are kept on the front counter. Folder K is an archived file. Where is Folder K not kept?", "On the front counter", ["In the records room", "In secure storage", "In any approved archive"], "The rule excludes every archived file from the front counter."],
+      ["Logic", "A meeting is held every second Tuesday. If it was held on May 12, what is the next meeting date in the same month?", "May 26", ["May 19", "May 20", "June 12"], "The next occurrence is 14 days later."],
+      ["Identifying assumptions/conclusions", "Claim: ‘The office should add an online appointment option because it may reduce waiting at the service counter.’ Which assumption is needed?", "Some clients can use the online option instead of waiting in person.", ["Every client prefers paper forms.", "The office will stop all in-person service.", "Appointments always take longer than walk-ins."], "The recommendation depends on at least some clients using appointments instead of joining the walk-in queue."],
+      ["Identifying assumptions/conclusions", "All complete applications receive a tracking number. This application received a tracking number. Which conclusion is logically certain?", "It is not certain that the application was complete.", ["It was definitely incomplete.", "It was definitely complete.", "It was approved."], "The rule says complete applications get numbers; it does not say only complete applications get numbers."],
+      ["Identifying assumptions/conclusions", "‘The new index helped staff find records faster, so the index improved retrieval.’ What is the conclusion?", "The index improved retrieval.", ["Staff created a new index.", "Records were removed.", "The index was difficult to use."], "The stated conclusion follows the word ‘so.’"],
+      ["Data interpretation", "A service desk handled 24, 30, and 36 requests on Monday, Tuesday, and Wednesday. What was the average per day?", "30", ["28", "32", "36"], "(24 + 30 + 36) ÷ 3 = 90 ÷ 3 = 30."],
+      ["Data interpretation", "A unit processed 80 forms in Week 1 and 100 in Week 2. By what percentage did output increase?", "25%", ["20%", "22%", "125%"], "The increase is 20 forms; 20 ÷ 80 × 100 = 25%."],
+      ["Data interpretation", "The counts of inquiries by channel were: phone 18, email 27, walk-in 15. Which channel had the most inquiries?", "Email", ["Phone", "Walk-in", "All were equal"], "Email had 27, the largest count."],
+      ["Problem solving", "A clerk files 18 records in 30 minutes at a steady rate. How many records can be filed in 2 hours?", "72", ["36", "54", "90"], "Two hours is 120 minutes, four times 30; 18 × 4 = 72."],
+      ["Problem solving", "A team must distribute 96 leaflets equally among 8 barangays. How many does each barangay receive?", "12", ["10", "11", "14"], "96 ÷ 8 = 12."],
+      ["Problem solving", "A supply order has 5 boxes with 24 folders each. If 17 folders are used, how many remain?", "103", ["97", "107", "120"], "5 × 24 = 120; 120 − 17 = 103."]
+    ],
+    clerical: [
+      ["Filing", "Under standard word-by-word alphabetic filing, which name comes first?", "Cruz, Ana", ["Cruz, Anna", "Cruz, Ben", "Dela Cruz, Ana"], "Compare letter by letter: Ana precedes Anna, and the Cruz entries precede Dela Cruz."],
+      ["Filing", "Which sequence is in correct alphabetical order by surname?", "Abad, Bautista, Garcia, Santos", ["Bautista, Abad, Santos, Garcia", "Abad, Garcia, Bautista, Santos", "Santos, Garcia, Bautista, Abad"], "Alphabetical order follows A, B, G, S."],
+      ["Filing", "Which title should be filed first alphabetically?", "Annual Budget Report", ["Annual Leave Form", "Annual Payroll Summary", "Annual Training Plan"], "After ‘Annual ’, ‘Budget’ precedes ‘Leave,’ ‘Payroll,’ and ‘Training.’"],
+      ["Filing", "In a numeric filing system, which file number comes immediately after 0089?", "0090", ["0088", "0100", "0890"], "In ascending numeric order, 0090 follows 0089."],
+      ["Alphabetizing", "Put these words in alphabetical order: record, receipt, request.", "receipt, record, request", ["record, receipt, request", "request, receipt, record", "receipt, request, record"], "Compare the second letters: ‘receipt’ (e), ‘record’ (e; then c before q), ‘request’ (e then q)."],
+      ["Alphabetizing", "Which comes first alphabetically?", "Mendoza", ["Mercado", "Morales", "Munoz"], "‘Me’ comes before ‘Mo’ and ‘Mu’; between Mercado and Mendoza, ‘c’ precedes ‘n.’"],
+      ["Alphabetizing", "Choose the correct alphabetical sequence.", "Central, City, Civic, Civil", ["City, Civil, Civic, Central", "Central, Civil, City, Civic", "Civic, Civil, City, Central"], "Central comes before the Ci- words; City precedes Civ-; between Civic and Civil, c precedes l."],
+      ["Spelling", "Choose the correctly spelled word.", "accommodate", ["accomodate", "acommodate", "accommadate"], "‘Accommodate’ has double c and double m."],
+      ["Spelling", "Choose the correctly spelled word.", "necessary", ["neccessary", "necesary", "necessery"], "‘Necessary’ has one c and two s's."],
+      ["Spelling", "Choose the correctly spelled word.", "privilege", ["priviledge", "privelege", "privlege"], "The correct spelling is ‘privilege,’ with no d."],
+      ["Clerical operations", "A clerk receives 48 forms and has already checked 19. How many remain unchecked?", "29", ["27", "31", "67"], "48 − 19 = 29."],
+      ["Clerical operations", "A batch contains 6 folders with 15 documents each. How many documents are there?", "90", ["21", "75", "96"], "6 × 15 = 90."],
+      ["Clerical operations", "A record shows 14:35. What is this time in 12-hour format?", "2:35 p.m.", ["4:35 a.m.", "2:35 a.m.", "12:35 p.m."], "14:35 is 12 hours plus 2 hours and 35 minutes: 2:35 p.m."],
+      ["Clerical operations", "Which action best prevents a data-entry error when transferring a number from a source document?", "Compare the entered number with the source before saving.", ["Rely on memory after reading it once.", "Skip the review when busy.", "Change unclear digits to likely values."], "Verifying against the source is a basic accuracy check."]
+    ]
+  };
+
+  function civilQuestion(section) {
+    var item = pick(CIVIL_BANKS[section]);
+    var choices = [{ key: item[2], html: esc(item[2]) }];
+    item[3].forEach(function (v) { choices.push({ key: v, html: esc(v) }); });
+    shuffle(choices);
+    var prompt = item[1];
+    var q = mkT(section + "|" + item[0] + "|" + prompt, item[0],
+      section === "verbal" ? "#E97855" : section === "general" ? "#3D9B86" : section === "analytical" ? "#C05C9B" : "#5277BD",
+      30, prompt, null, choices, item[2], item[4]);
+    q.topic = section === "verbal" ? "Verbal Ability · " + item[0] :
+      section === "general" ? "General Information · " + item[0] :
+      section === "analytical" ? "Analytical Ability · " + item[0] :
+      "Clerical Ability · " + item[0];
+    return q;
+  }
+
   /* ---------- building a round ---------- */
   function makeFor(topic) {
     if (topic === "basic") { var l = wholeOps(); return makeQuestion(l[rand(0, l.length - 1)]); }
     if (topic === "seq") return seqQuestion();
     if (topic === "word") return wordQuestion();
     if (topic === "ratio") return ratioQuestion();
+    if (topic === "verbal" || topic === "general" || topic === "analytical" || topic === "clerical") return civilQuestion(topic);
     var f = fdpOps(), k = f[rand(0, f.length - 1)];
     if (k === "dec") return decQuestion();
     if (k === "pct") return pctQuestion();
@@ -1088,10 +1249,12 @@
   function startGame() {
     var qs = buildQuestions();
     state = { qs: qs, i: 0, score: 0, streak: 0, correct: 0, missed: [], marks: [], locked: false, t0: 0 };
+    $("congrats").classList.add("hidden");
     show(game);
     renderProgress();
     $("score").textContent = "0 pts";
     $("streak").textContent = "";
+    startTimer();
     nextQuestion();
   }
 
@@ -1173,6 +1336,7 @@
       fb.textContent = txt ? "Answer: " + q.ansText : qText(q) + " is " + q.key;
       fb.className = "feedback bad";
     }
+    playAnswerSound(ok);
     try { if (navigator.vibrate) navigator.vibrate(ok ? 15 : [40, 40, 40]); } catch (e) {}
     $("score").textContent = state.score + " pts";
     $("streak").textContent = state.streak >= 2 ? state.streak + " in a row" : "";
@@ -1198,13 +1362,16 @@
 
   function finish() {
     var total = state.qs.length;
+    var elapsed = stopTimer();
+    var qualifies = total > 0 && state.correct / total >= 0.8;
     var prev = loadBest(total);
     var isBest = state.score > prev;
     if (isBest) saveBest(total, state.score);
     $("finalScore").textContent = state.score + " pts";
-    var line = state.correct + " of " + total + " correct";
+    var line = state.correct + " of " + total + " correct · Time " + elapsed;
     if (isBest && state.score > 0) line += ". New best!";
     $("finalLine").textContent = line;
+    $("congrats").classList.toggle("hidden", !qualifies);
 
     var list = $("missed");
     list.innerHTML = "";
@@ -1224,6 +1391,7 @@
     });
     $("missedWrap").classList.toggle("hidden", state.missed.length === 0);
     show(results);
+    if (qualifies) playCongratsSong();
     $("again").focus({ preventScroll: true });
   }
 
