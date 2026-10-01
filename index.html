@@ -141,6 +141,7 @@
   .result-top .big { font-size: clamp(56px, 18vw, 88px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
   .result-top p { margin: 6px 0 0; color: var(--ink-soft); }
   .result-top #congrats { margin-top: 12px; color: var(--good); font-size: 18px; font-weight: 800; }
+  .result-top #encourage { margin-top: 12px; color: var(--ink-soft); font-weight: 800; }
   .missed { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
   .missed li {
     border-radius: 10px; padding: 12px; font-weight: 800; font-size: 18px;
@@ -179,6 +180,10 @@
 
   /* Topic list + settings panels */
   .topics { display: grid; gap: 8px; margin-bottom: 22px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 18px; }
+  .tab { border: 2px solid var(--line); background: var(--surface); border-radius: 12px; min-height: 48px; font-weight: 800; }
+  .tab[aria-selected="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+  a.btn { display: block; margin-top: 18px; text-align: center; text-decoration: none; }
   .trow {
     border: 0; border-radius: 12px; background: var(--tint); color: var(--on-color);
     padding: 12px 52px 12px 14px; text-align: left; position: relative; min-height: 58px;
@@ -277,8 +282,14 @@
   <!-- Setup screen -->
   <section id="setup">
     <h1>Civil Service Exam Practice</h1>
-    <p class="sub">Practice numerical, verbal, general information, analytical, and clerical ability. Choose topics, then answer as fast as you can.</p>
+    <p class="sub">Practice numerical, verbal, general information, analytical, clerical, and math topics. Choose topics, then answer as fast as you can.</p>
 
+    <div class="tabs" role="tablist" aria-label="Exam modes">
+      <button class="tab" id="practiceTab" role="tab" aria-selected="true" aria-controls="practicePanel">Practice</button>
+      <button class="tab" id="mockExamTab" role="tab" aria-selected="false" aria-controls="mockExamPanel">Mock Exam</button>
+    </div>
+
+    <div id="practicePanel" role="tabpanel" aria-labelledby="practiceTab">
     <h2>Topics</h2>
     <div class="topics" id="topicList"></div>
 
@@ -313,6 +324,21 @@
     <button class="btn" id="start">Start</button>
     <p class="best" id="hint"></p>
     <p class="best" id="best"></p>
+    </div>
+
+    <div id="mockExamPanel" class="hidden" role="tabpanel" aria-labelledby="mockExamTab">
+      <div class="detail">
+        <h2>Full Civil Service Mock Exam</h2>
+        <p>Practice in a timed, full-exam format on Civil Service Reviewer PH.</p>
+        <ul>
+          <li>Approximately 3 hours</li>
+          <li>165 items for Subprofessional / 170 items for Professional</li>
+          <li>80% general rating passing score (as listed on the exam page)</li>
+        </ul>
+        <a class="btn" href="https://civilservicereviewerph.com/quiz" target="_blank" rel="noopener noreferrer">Take the Mock Exam</a>
+      </div>
+      <p class="best">The mock exam opens on Civil Service Reviewer PH in a new tab.</p>
+    </div>
   </section>
 
   <!-- Game screen -->
@@ -341,6 +367,7 @@
       <div class="big" id="finalScore"></div>
       <p id="finalLine"></p>
       <p id="congrats" class="hidden" role="status">Congratulations! You scored at least 80% — great work!</p>
+      <p id="encourage" class="hidden" role="status">Keep practicing! Review missed questions, then try again.</p>
     </div>
     <div id="missedWrap">
       <h2>Worth another look</h2>
@@ -387,6 +414,12 @@
     [setup, game, results].forEach(function (s) { s.classList.add("hidden"); });
     el.classList.remove("hidden");
     window.scrollTo(0, 0);
+  }
+  function setSetupTab(mock) {
+    $("practicePanel").classList.toggle("hidden", mock);
+    $("mockExamPanel").classList.toggle("hidden", !mock);
+    $("practiceTab").setAttribute("aria-selected", mock ? "false" : "true");
+    $("mockExamTab").setAttribute("aria-selected", mock ? "true" : "false");
   }
   function bestKey(c) { return c === 10 ? "tts-best" : "tts-best-" + c; }
   function loadBest(c) {
@@ -456,6 +489,16 @@
       melody.forEach(function (n, i) { playTone(ctx, n, startAt + i * 0.2, 0.24, 0.09); });
     } catch (e) {}
   }
+  function playEncouragementSong() {
+    try {
+      var ctx = getAudioContext();
+      if (!ctx) return;
+      // A gentle, original tune that resolves upward to encourage another try.
+      var melody = [392, 349.23, 329.63, 349.23, 392, 523.25];
+      var startAt = ctx.currentTime + 0.08;
+      melody.forEach(function (n, i) { playTone(ctx, n, startAt + i * 0.24, 0.3, 0.075, "sine"); });
+    } catch (e) {}
+  }
   function showBest() {
     var b = loadBest(rounds);
     $("best").textContent = b ? "Best score for " + rounds + " questions: " + b + " pts" : "";
@@ -501,7 +544,10 @@
     { id: "verbal", name: "Verbal Ability", desc: "Vocabulary, grammar, completion, reading and paragraph order", color: "#E97855" },
     { id: "general", name: "General Information", desc: "Constitution, RA 6713, peace and rights, environment", color: "#3D9B86" },
     { id: "analytical", name: "Analytical Ability", desc: "Analogy, logic, assumptions, data and problem solving", color: "#C05C9B" },
-    { id: "clerical", name: "Clerical Ability (Subprofessional level)", desc: "Filing, alphabetizing, spelling and clerical operations", color: "#5277BD" }
+    { id: "clerical", name: "Clerical Ability (Subprofessional level)", desc: "Filing, alphabetizing, spelling and clerical operations", color: "#5277BD" },
+    { id: "pemdas", name: "PEMDAS", desc: "Order of operations with parentheses, exponents and arithmetic", color: "#D68127" },
+    { id: "geometry", name: "Geometry", desc: "Perimeter, area, angles and volume", color: "#336BAA" },
+    { id: "algebra", name: "Algebra", desc: "Expressions, equations, inequalities and substitution", color: "#8B67B1" }
   ];
   var topics = new Set(TOPICS.map(function (t) { return t.id; }));
 
@@ -1077,10 +1123,10 @@
     return mkT("ratio|" + p, "Ratio and proportion", C_RATIO, 20, p, null, numChoices(ans, extras, 0, fmt), fmt(ans), ex);
   }
 
-  /* ---------- Civil Service verbal, general information, analytical and clerical practice ---------- */
+  /* ---------- Civil Service and math practice question banks ---------- */
   // Each item is [domain, prompt, correct answer, three distractors, explanation].
   // Philippine law and constitutional items are for general exam practice; consult current official sources for legal advice.
-  var CIVIL_BANKS = {
+  var EXAM_BANKS = {
     verbal: [
       ["Word meaning / vocabulary", "In the sentence ‘The committee reached a **unanimous** decision,’ what does unanimous mean?", "Agreed to by everyone", ["Made without discussion", "Delayed until later", "Opposed by most members"], "Unanimous means all members agree."],
       ["Word meaning / vocabulary", "Choose the closest meaning of **diligent**.", "Hardworking and careful", ["Careless", "Unwilling", "Uncertain"], "A diligent person works carefully and persistently."],
@@ -1150,22 +1196,56 @@
       ["Clerical operations", "A batch contains 6 folders with 15 documents each. How many documents are there?", "90", ["21", "75", "96"], "6 × 15 = 90."],
       ["Clerical operations", "A record shows 14:35. What is this time in 12-hour format?", "2:35 p.m.", ["4:35 a.m.", "2:35 a.m.", "12:35 p.m."], "14:35 is 12 hours plus 2 hours and 35 minutes: 2:35 p.m."],
       ["Clerical operations", "Which action best prevents a data-entry error when transferring a number from a source document?", "Compare the entered number with the source before saving.", ["Rely on memory after reading it once.", "Skip the review when busy.", "Change unclear digits to likely values."], "Verifying against the source is a basic accuracy check."]
+    ],
+    pemdas: [
+      ["Order of operations", "Evaluate: 8 + 3 × 4", "20", ["44", "32", "17"], "Multiply first: 3 × 4 = 12, then 8 + 12 = 20."],
+      ["Order of operations", "Evaluate: (20 − 8) ÷ 3 + 2", "6", ["4", "8", "10"], "Parentheses first: 20 − 8 = 12; then 12 ÷ 3 + 2 = 6."],
+      ["Order of operations", "Evaluate: 5 + 24 ÷ (2 × 3)", "9", ["14", "29", "48"], "Parentheses: 2 × 3 = 6; division: 24 ÷ 6 = 4; then 5 + 4 = 9."],
+      ["Order of operations", "Evaluate: 2² + 3 × 4", "16", ["28", "40", "100"], "Exponent first: 2² = 4; multiplication: 3 × 4 = 12; total = 16."],
+      ["Order of operations", "Evaluate: 30 − 2 × (7 + 3)", "10", ["70", "20", "16"], "Parentheses give 10; multiply 2 × 10 = 20; then 30 − 20 = 10."],
+      ["Order of operations", "Evaluate from left to right: 36 ÷ 3 × 2", "24", ["6", "18", "3"], "Division and multiplication have equal precedence: 36 ÷ 3 = 12, then 12 × 2 = 24."],
+      ["Order of operations", "Evaluate: 4 × [6 − (2 + 1)]", "12", ["9", "15", "20"], "Inner parentheses: 2 + 1 = 3; then 6 − 3 = 3, and 4 × 3 = 12."],
+      ["Order of operations", "Evaluate: 3² + 4²", "25", ["49", "14", "24"], "Evaluate exponents: 9 + 16 = 25."],
+      ["Order of operations", "Evaluate: (18 + 6) ÷ 4 × 2", "12", ["3", "6", "24"], "Parentheses first: 24 ÷ 4 = 6; then 6 × 2 = 12."],
+      ["Order of operations", "Evaluate: 10 − 2²", "6", ["64", "16", "8"], "Exponent first: 2² = 4; then 10 − 4 = 6."]
+    ],
+    geometry: [
+      ["Perimeter and area", "A rectangle is 8 cm long and 5 cm wide. What is its perimeter?", "26 cm", ["13 cm", "40 cm", "80 cm"], "Perimeter = 2 × (8 + 5) = 26 cm."],
+      ["Perimeter and area", "What is the area of a triangle with base 10 cm and height 6 cm?", "30 cm²", ["60 cm²", "16 cm²", "32 cm²"], "Triangle area = ½ × base × height = ½ × 10 × 6 = 30 cm²."],
+      ["Circles", "A circle has radius 7 cm. Using π = 22/7, what is its circumference?", "44 cm", ["154 cm", "22 cm", "49 cm"], "Circumference = 2πr = 2 × 22/7 × 7 = 44 cm."],
+      ["Perimeter and area", "A square has sides of 9 cm. What is its area?", "81 cm²", ["36 cm²", "18 cm²", "72 cm²"], "Square area = side × side = 9 × 9 = 81 cm²."],
+      ["Angles", "Two angles of a triangle are 55° and 65°. What is the third angle?", "60°", ["70°", "80°", "120°"], "Triangle angles total 180°: 180 − 55 − 65 = 60°."],
+      ["Solid geometry", "What is the volume of a cube with side length 4 cm?", "64 cm³", ["16 cm³", "48 cm³", "12 cm³"], "Cube volume = side³ = 4 × 4 × 4 = 64 cm³."],
+      ["Perimeter and area", "A parallelogram has base 12 cm and height 5 cm. What is its area?", "60 cm²", ["34 cm²", "17 cm²", "120 cm²"], "Parallelogram area = base × perpendicular height = 12 × 5 = 60 cm²."],
+      ["Circles", "A circle has radius 5 cm. Using π = 3.14, what is its area?", "78.5 cm²", ["31.4 cm²", "15.7 cm²", "157 cm²"], "Circle area = πr² = 3.14 × 25 = 78.5 cm²."],
+      ["Perimeter and area", "A rectangle has area 72 cm² and length 9 cm. What is its width?", "8 cm", ["7 cm", "9 cm", "63 cm"], "Width = area ÷ length = 72 ÷ 9 = 8 cm."],
+      ["Solid geometry", "How many faces does a rectangular prism have?", "6", ["4", "8", "12"], "A rectangular prism has six faces."]
+    ],
+    algebra: [
+      ["Solving equations", "Solve: 3x + 7 = 25", "6", ["4", "8", "11"], "Subtract 7: 3x = 18; divide by 3: x = 6."],
+      ["Solving equations", "Solve: 5(x − 2) = 20", "6", ["2", "4", "8"], "Divide by 5: x − 2 = 4; add 2: x = 6."],
+      ["Solving equations", "Solve: x ÷ 4 − 3 = 2", "20", ["5", "8", "16"], "Add 3: x ÷ 4 = 5; multiply by 4: x = 20."],
+      ["Solving equations", "Solve: 2x + 5 = x + 12", "7", ["5", "12", "17"], "Subtract x and 5 from both sides: x = 7."],
+      ["Expressions", "Simplify: 3a + 2a − 4", "5a − 4", ["5a + 4", "6a − 4", "5a"], "Combine like terms: 3a + 2a = 5a; the constant −4 remains."],
+      ["Substitution", "If x = 3, evaluate 2x² − 3.", "15", ["9", "12", "27"], "Substitute 3: 2 × 3² − 3 = 18 − 3 = 15."],
+      ["Substitution", "If y = 2x + 1 and x = 4, what is y?", "9", ["7", "8", "10"], "Substitute 4: y = 2 × 4 + 1 = 9."],
+      ["Inequalities", "Solve: 3x < 12", "x < 4", ["x > 4", "x < 9", "x > 9"], "Divide both sides by positive 3; the inequality direction stays the same: x < 4."],
+      ["Solving equations", "Solve: 2(x + 3) = 18", "6", ["3", "9", "12"], "Divide by 2: x + 3 = 9; subtract 3: x = 6."],
+      ["Solving equations", "Solve: (x − 5) ÷ 3 = 4", "17", ["7", "12", "20"], "Multiply by 3: x − 5 = 12; add 5: x = 17."]
     ]
   };
 
-  function civilQuestion(section) {
-    var item = pick(CIVIL_BANKS[section]);
+  function bankQuestion(section) {
+    var item = pick(EXAM_BANKS[section]);
     var choices = [{ key: item[2], html: esc(item[2]) }];
     item[3].forEach(function (v) { choices.push({ key: v, html: esc(v) }); });
     shuffle(choices);
     var prompt = item[1];
-    var q = mkT(section + "|" + item[0] + "|" + prompt, item[0],
-      section === "verbal" ? "#E97855" : section === "general" ? "#3D9B86" : section === "analytical" ? "#C05C9B" : "#5277BD",
+    var colors = { verbal: "#E97855", general: "#3D9B86", analytical: "#C05C9B", clerical: "#5277BD", pemdas: "#D68127", geometry: "#336BAA", algebra: "#8B67B1" };
+    var names = { verbal: "Verbal Ability", general: "General Information", analytical: "Analytical Ability", clerical: "Clerical Ability", pemdas: "PEMDAS", geometry: "Geometry", algebra: "Algebra" };
+    var q = mkT(section + "|" + item[0] + "|" + prompt, item[0], colors[section],
       30, prompt, null, choices, item[2], item[4]);
-    q.topic = section === "verbal" ? "Verbal Ability · " + item[0] :
-      section === "general" ? "General Information · " + item[0] :
-      section === "analytical" ? "Analytical Ability · " + item[0] :
-      "Clerical Ability · " + item[0];
+    q.topic = names[section] + " · " + item[0];
     return q;
   }
 
@@ -1175,7 +1255,7 @@
     if (topic === "seq") return seqQuestion();
     if (topic === "word") return wordQuestion();
     if (topic === "ratio") return ratioQuestion();
-    if (topic === "verbal" || topic === "general" || topic === "analytical" || topic === "clerical") return civilQuestion(topic);
+    if (topic === "verbal" || topic === "general" || topic === "analytical" || topic === "clerical" || topic === "pemdas" || topic === "geometry" || topic === "algebra") return bankQuestion(topic);
     var f = fdpOps(), k = f[rand(0, f.length - 1)];
     if (k === "dec") return decQuestion();
     if (k === "pct") return pctQuestion();
@@ -1252,6 +1332,7 @@
     var qs = buildQuestions();
     state = { qs: qs, i: 0, score: 0, streak: 0, correct: 0, missed: [], marks: [], locked: false, t0: 0 };
     $("congrats").classList.add("hidden");
+    $("encourage").classList.add("hidden");
     show(game);
     renderProgress();
     $("score").textContent = "0 pts";
@@ -1374,6 +1455,7 @@
     if (isBest && state.score > 0) line += ". New best!";
     $("finalLine").textContent = line;
     $("congrats").classList.toggle("hidden", !qualifies);
+    $("encourage").classList.toggle("hidden", qualifies);
 
     var list = $("missed");
     list.innerHTML = "";
@@ -1394,6 +1476,7 @@
     $("missedWrap").classList.toggle("hidden", state.missed.length === 0);
     show(results);
     if (qualifies) playCongratsSong();
+    else playEncouragementSong();
     $("again").focus({ preventScroll: true });
   }
 
@@ -1401,7 +1484,9 @@
   $("start").onclick = startGame;
   $("again").onclick = startGame;
   $("nextBtn").onclick = advance;
-  $("change").onclick = function () { showBest(); show(setup); };
+  $("practiceTab").onclick = function () { setSetupTab(false); };
+  $("mockExamTab").onclick = function () { setSetupTab(true); };
+  $("change").onclick = function () { setSetupTab(false); showBest(); show(setup); };
 
   document.addEventListener("keydown", function (e) {
     if (game.classList.contains("hidden") || !state) return;
