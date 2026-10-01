@@ -425,9 +425,9 @@
     if (audioContext.state === "suspended") audioContext.resume().catch(function () {});
     return audioContext;
   }
-  function playTone(ctx, frequency, at, duration, volume) {
+  function playTone(ctx, frequency, at, duration, volume, waveform) {
     var osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.type = "sine";
+    osc.type = waveform || "sine";
     osc.frequency.setValueAtTime(frequency, at);
     gain.gain.setValueAtTime(0.0001, at);
     gain.gain.exponentialRampToValueAtTime(volume, at + 0.02);
@@ -440,8 +440,10 @@
       var ctx = getAudioContext();
       if (!ctx) return;
       var now = ctx.currentTime;
-      var notes = correct ? [660, 880] : [240, 180];
-      notes.forEach(function (n, i) { playTone(ctx, n, now + i * 0.12, 0.16, 0.08); });
+      var notes = correct ? [660, 880] : [330, 247];
+      notes.forEach(function (n, i) {
+        playTone(ctx, n, now + i * (correct ? 0.12 : 0.16), correct ? 0.16 : 0.24, correct ? 0.08 : 0.13, correct ? "sine" : "triangle");
+      });
     } catch (e) {}
   }
   function playCongratsSong() {
